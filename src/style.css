@@ -30,9 +30,9 @@
   --success: #4ade80;
   --error: #f87171;
   
-  /* Typografia */
-  --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-display: 'Comic Sans MS', 'Chalkboard SE', cursive;
+  /* Typografia - Google Fonts */
+  --font-main: 'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Fredoka', 'Nunito', system-ui, sans-serif;
   
   /* Spacing */
   --space-xs: 0.25rem;
@@ -61,18 +61,28 @@
 
 html {
   font-size: 16px;
+  /* Zapobiega skokom przy pokazywaniu klawiatury na mobile */
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
   font-family: var(--font-main);
   background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-medium) 50%, var(--bg-light) 100%);
   color: var(--text-primary);
-  min-height: 100vh;
+  min-height: 100%;
+  height: 100%;
   line-height: 1.5;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Stabilny layout na mobile */
+  position: fixed;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 #app {
-  min-height: 100vh;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -87,9 +97,12 @@ body {
   flex-direction: column;
   align-items: center;
   padding: var(--space-lg);
+  padding-bottom: env(safe-area-inset-bottom, var(--space-lg));
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
+  /* Pozwala na scroll gdy klawiatura jest otwarta */
+  overflow-y: auto;
 }
 
 .hidden {
@@ -412,6 +425,8 @@ h2 {
   gap: var(--space-md);
   align-items: center;
   margin-bottom: var(--space-lg);
+  /* Zapewnia widoczność nad klawiaturą mobilną */
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 .answer-input {
@@ -509,6 +524,7 @@ h2 {
 @media (max-width: 600px) {
   .screen {
     padding: var(--space-md);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-md));
   }
   
   .ninja-grid {
@@ -531,15 +547,83 @@ h2 {
   .game-header {
     flex-wrap: wrap;
     gap: var(--space-sm);
+    /* Sticky header na mobile */
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(26, 26, 46, 0.95);
+    backdrop-filter: blur(10px);
+    margin: calc(-1 * var(--space-md));
+    margin-bottom: var(--space-md);
+    padding: var(--space-sm);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
   }
   
   .answer-container {
     flex-direction: column;
+    /* Zapewnia że button jest widoczny nad klawiaturą */
+    padding-bottom: var(--space-xl);
+    margin-bottom: var(--space-xl);
+    scroll-margin-bottom: 100px;
   }
   
   .answer-input {
     width: 100%;
     max-width: 200px;
+    /* Scroll do inputa gdy focus */
+    scroll-margin-top: 20px;
+    scroll-margin-bottom: 150px;
+  }
+  
+  /* Mniejszy avatar na mobile aby zmieścić więcej treści */
+  .ninja-avatar {
+    margin: var(--space-sm) 0;
+  }
+  
+  .ninja-avatar svg {
+    width: 100px;
+    height: 100px;
+  }
+  
+  /* Mniejszy problem container na mobile */
+  .problem-container {
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+  
+  .problem-display {
+    font-size: clamp(1.75rem, 8vw, 3rem);
+  }
+  
+  /* Feedback i wiadomości bardziej kompaktowe */
+  .feedback {
+    font-size: 1.25rem;
+  }
+  
+  .ninja-message {
+    font-size: 1rem;
+    padding: var(--space-sm);
+    margin-bottom: var(--space-md);
+  }
+}
+
+/* Landscape mode na mobile - jeszcze bardziej kompaktowy */
+@media (max-height: 500px) and (orientation: landscape) {
+  .ninja-avatar {
+    display: none;
+  }
+  
+  .screen {
+    padding: var(--space-sm);
+  }
+  
+  .problem-container {
+    padding: var(--space-sm);
+    margin-bottom: var(--space-sm);
+  }
+  
+  .answer-container {
+    flex-direction: row;
   }
 }
 

@@ -248,11 +248,13 @@ function randomChoice<T>(array: T[]): T {
 
 /**
  * Generuje zadanie dodawania.
- * Suma nie przekracza maxNumber.
+ * Suma nie przekracza maxNumber i jest zawsze > 0.
  */
 export function generateAdditionProblem(maxNumber: number): MathProblem {
-  const operand1 = randomInt(maxNumber - 1);
-  const operand2 = randomInt(maxNumber - operand1);
+  // Zapewniamy że oba operandy są >= 1, więc suma >= 2
+  const operand1 = randomInt(Math.max(1, maxNumber - 1));
+  const maxOperand2 = Math.max(1, maxNumber - operand1);
+  const operand2 = randomInt(maxOperand2);
 
   return {
     operand1,
@@ -264,11 +266,13 @@ export function generateAdditionProblem(maxNumber: number): MathProblem {
 
 /**
  * Generuje zadanie odejmowania.
- * Wynik jest zawsze nieujemny (operand1 >= operand2).
+ * Wynik jest zawsze dodatni (> 0), czyli operand1 > operand2.
  */
 export function generateSubtractionProblem(maxNumber: number): MathProblem {
-  const operand1 = randomInt(maxNumber);
-  const operand2 = randomInt(operand1);
+  // operand1 musi być co najmniej 2, żeby wynik mógł być > 0
+  const operand1 = randomInt(Math.max(2, maxNumber - 1)) + 1; // od 2 do maxNumber
+  // operand2 musi być mniejszy niż operand1, żeby wynik był > 0
+  const operand2 = randomInt(operand1 - 1); // od 1 do operand1-1
 
   return {
     operand1,

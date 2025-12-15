@@ -318,6 +318,16 @@ answerInput.addEventListener("keypress", (e) => {
   }
 });
 
+/**
+ * Scroll do inputa gdy klawiatura się pojawi na mobile
+ */
+answerInput.addEventListener("focus", () => {
+  // Małe opóźnienie żeby klawiatura zdążyła się pojawić
+  setTimeout(() => {
+    answerInput.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 300);
+});
+
 // ============================================================================
 // INICJALIZACJA
 // ============================================================================

@@ -74,13 +74,13 @@ describe("Math Problem Generation", () => {
       expect(problem.correctAnswer).toBe(problem.operand1 - problem.operand2);
     });
 
-    it("should always produce non-negative results (child-friendly)", () => {
+    it("should always produce positive results (child-friendly, > 0)", () => {
       // Test wielokrotnie dla losowości
       for (let i = 0; i < 100; i++) {
         const problem = generateSubtractionProblem(50);
 
-        expect(problem.correctAnswer).toBeGreaterThanOrEqual(0);
-        expect(problem.operand1).toBeGreaterThanOrEqual(problem.operand2);
+        expect(problem.correctAnswer).toBeGreaterThan(0);
+        expect(problem.operand1).toBeGreaterThan(problem.operand2);
       }
     });
   });
