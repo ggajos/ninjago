@@ -376,17 +376,28 @@ h2 {
   margin-bottom: var(--space-lg);
 }
 
-.score-display, .streak-display, .damage-display {
+.score-display, .enemies-display, .damage-display {
   font-size: 1.25rem;
   display: flex;
   align-items: center;
   gap: var(--space-xs);
 }
 
-#current-score, #current-streak, #current-damage {
+#current-score, #current-enemies, #current-damage {
   font-weight: 700;
   color: var(--accent-gold);
   font-size: 1.5rem;
+}
+
+.enemies-display {
+  background: linear-gradient(135deg, rgba(128, 0, 128, 0.2), rgba(148, 0, 211, 0.1));
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(148, 0, 211, 0.3);
+}
+
+#current-enemies {
+  color: #da70d6;
 }
 
 .damage-display {
@@ -1143,6 +1154,66 @@ h2 {
 @keyframes gameOverPulse {
   0%, 100% { text-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
   50% { text-shadow: 0 0 40px rgba(239, 68, 68, 0.8); }
+}
+
+/* ============================================================================
+   EKRAN ZWYCIĘSTWA
+   ============================================================================ */
+
+.victory-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 8vw, 3.5rem);
+  background: linear-gradient(180deg, #ffd700 0%, #ff9500 50%, #ffd700 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+  animation: victoryPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes victoryPulse {
+  0%, 100% { 
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% { 
+    transform: scale(1.05);
+    filter: brightness(1.2);
+  }
+}
+
+.victory-message {
+  text-align: center;
+  margin-bottom: var(--space-lg);
+}
+
+.victory-hero {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  color: var(--accent-gold);
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  margin-bottom: var(--space-sm);
+  animation: heroGlow 2s ease-in-out infinite;
+}
+
+@keyframes heroGlow {
+  0%, 100% { 
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  }
+  50% { 
+    text-shadow: 0 0 40px rgba(255, 215, 0, 1), 0 0 60px rgba(255, 107, 0, 0.8);
+  }
+}
+
+.victory-stats {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 107, 0, 0.1));
+  border: 2px solid var(--accent-gold);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+#victory-screen {
+  background: radial-gradient(ellipse at center, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
 }
 
 .gameover-stats {

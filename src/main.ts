@@ -172,7 +172,7 @@ const muteBtn = $("#mute-btn");
 
 // Game screen
 const currentScore = $("#current-score");
-const currentStreak = $("#current-streak");
+const currentEnemies = $("#current-enemies");
 const currentDamage = $("#current-damage");
 const backBtn = $("#back-btn");
 const ninjaAvatar = $("#ninja-avatar");
@@ -209,6 +209,14 @@ const finalCorrect = $("#final-correct");
 const finalEnemies = $("#final-enemies");
 const restartBtn = $("#restart-btn");
 const menuBtn = $("#menu-btn");
+
+// Victory screen
+const victoryScreen = $("#victory-screen");
+const victoryScore = $("#victory-score");
+const victoryCorrect = $("#victory-correct");
+const victoryEnemies = $("#victory-enemies");
+const victoryRestartBtn = $("#victory-restart-btn");
+const victoryMenuBtn = $("#victory-menu-btn");
 
 // ============================================================================
 // EPIC EFFECTS & STORY SYSTEM
@@ -743,7 +751,7 @@ function renderStartScreen(): void {
  */
 function renderGameScreen(): void {
   currentScore.textContent = String(gameState.score);
-  currentStreak.textContent = String(gameState.streak);
+  currentEnemies.textContent = String(gameState.enemiesDefeated);
   updateDamageDisplay();
 
   ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
@@ -896,6 +904,21 @@ function showGameOver(): void {
   gameoverScreen.classList.remove("hidden");
 }
 
+/**
+ * Pokazuje ekran zwycięstwa po pokonaniu Overlorda
+ */
+function showVictory(): void {
+  stopIdleTimer();
+  gameState.isGameOver = true;
+
+  victoryScore.textContent = String(gameState.score);
+  victoryCorrect.textContent = String(gameState.correctAnswers);
+  victoryEnemies.textContent = String(gameState.enemiesDefeated);
+
+  gameScreen.classList.add("hidden");
+  victoryScreen.classList.remove("hidden");
+}
+
 // ============================================================================
 // IDLE TIMER - Atak wroga przy braku aktywności
 // ============================================================================
@@ -987,10 +1010,12 @@ function showScreen(screen: "start" | "game"): void {
     startScreen.classList.remove("hidden");
     gameScreen.classList.add("hidden");
     gameoverScreen.classList.add("hidden");
+    victoryScreen.classList.add("hidden");
     renderStartScreen();
   } else {
     startScreen.classList.add("hidden");
     gameoverScreen.classList.add("hidden");
+    victoryScreen.classList.add("hidden");
     gameScreen.classList.remove("hidden");
     renderGameScreen();
   }
@@ -1135,7 +1160,7 @@ function handleSubmit(): void {
 
   // Aktualizuj wynik
   currentScore.textContent = String(gameState.score);
-  currentStreak.textContent = String(gameState.streak);
+  currentEnemies.textContent = String(gameState.enemiesDefeated);
   updateDamageDisplay();
 
   // Sprawdź czy wróg pokonany
@@ -1184,10 +1209,16 @@ function handleSubmit(): void {
       showLevelUpEffect("OVERLORD");
       lightningFlash();
       setTimeout(() => {
-        showStoryOverlay({
-          emoji: "🏆",
-          text: "ZWYCIĘSTWO!\n\nPokonałeś wszystkich wrogów Ninjago!\n\nJesteś prawdziwym mistrzem Spinjitzu!\n\n⚡ Twoja mądrość matematyczna uratowała krainę! ⚡",
-        });
+        showStoryOverlay(
+          {
+            emoji: "🏆",
+            text: "ZWYCIĘSTWO!\n\nPokonałeś Overlorda i uratowałeś Ninjago!\n\nJesteś prawdziwym MISTRZEM SPINJITZU!\n\n⚡ Twoja mądrość matematyczna ocaliła krainę! ⚡",
+          },
+          () => {
+            // Po zamknięciu story overlay - pokaż ekran zwycięstwa
+            showVictory();
+          }
+        );
       }, 500);
     }
   }
@@ -1313,7 +1344,7 @@ restartBtn.addEventListener("click", () => {
   // Aktualizuj UI
   problemDisplay.textContent = formatProblem(gameState.currentProblem!);
   currentScore.textContent = "0";
-  currentStreak.textContent = "0";
+  currentEnemies.textContent = "0";
   updateDamageDisplay();
   ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
   document.documentElement.style.setProperty(
@@ -1335,6 +1366,49 @@ restartBtn.addEventListener("click", () => {
  * Powrót do menu głównego po przegranej
  */
 menuBtn.addEventListener("click", () => {
+  playSound("click");
+  showScreen("start");
+});
+
+/**
+ * Restart po zwycięstwie
+ */
+victoryRestartBtn.addEventListener("click", () => {
+  playSound("start");
+  const currentNinja = gameState.currentNinja;
+  const difficulty = gameState.difficulty;
+
+  // Resetuj stan i rozpocznij grę
+  gameState = createInitialState();
+  gameState = selectNinja(gameState, currentNinja.id);
+  gameState = selectDifficulty(gameState, difficulty.id);
+  gameState = startGame(gameState);
+
+  // Aktualizuj UI
+  problemDisplay.textContent = formatProblem(gameState.currentProblem!);
+  currentScore.textContent = "0";
+  currentEnemies.textContent = "0";
+  updateDamageDisplay();
+  ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
+  document.documentElement.style.setProperty(
+    "--current-ninja-color",
+    gameState.currentNinja.color
+  );
+  updateHealthBars();
+  const initialEnemyType = getEnemyType(gameState.enemyLevel);
+  enemyAvatar.innerHTML = createEnemyAvatarSVG(initialEnemyType, 120);
+  updateEnemyNameDisplay(initialEnemyType);
+
+  // Pokaż ekran gry
+  showScreen("game");
+  answerInput.value = "";
+  answerDisplay.textContent = "?";
+});
+
+/**
+ * Powrót do menu głównego po zwycięstwie
+ */
+victoryMenuBtn.addEventListener("click", () => {
   playSound("click");
   showScreen("start");
 });

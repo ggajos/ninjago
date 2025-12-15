@@ -54,10 +54,9 @@
             <span>⚔️</span>
             <span id="current-damage">15</span>
           </div>
-          <div class="streak-display">
-            <span>Seria: </span>
-            <span id="current-streak">0</span>
-            <span>🔥</span>
+          <div class="enemies-display">
+            <span>💀</span>
+            <span id="current-enemies">0</span>
           </div>
           <button id="back-btn" class="btn btn-small">⬅ Menu</button>
         </header>
@@ -152,6 +151,22 @@
         </div>
         <button id="restart-btn" class="btn btn-start">Zagraj ponownie!</button>
         <button id="menu-btn" class="btn btn-small">⬅ Menu główne</button>
+      </div>
+
+      <!-- EKRAN ZWYCIĘSTWA -->
+      <div id="victory-screen" class="screen hidden">
+        <h1 class="title victory-title">🏆 ZWYCIĘSTWO! 🏆</h1>
+        <div class="victory-message">
+          <p class="victory-hero">⚡ MISTRZ SPINJITZU ⚡</p>
+          <p>Pokonałeś Overlorda i uratowałeś Ninjago!</p>
+        </div>
+        <div class="gameover-stats victory-stats">
+          <p>Zdobyte punkty: <strong id="victory-score">0</strong></p>
+          <p>Poprawne odpowiedzi: <strong id="victory-correct">0</strong></p>
+          <p>Pokonani wrogowie: <strong id="victory-enemies">0</strong></p>
+        </div>
+        <button id="victory-restart-btn" class="btn btn-start">🥷 Nowa przygoda!</button>
+        <button id="victory-menu-btn" class="btn btn-small">⬅ Menu główne</button>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

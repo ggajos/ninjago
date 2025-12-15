@@ -710,7 +710,11 @@ export function processAnswer(
     playerDefeated,
     damageDealt,
     damageTaken,
-    newEnemyType: enemyDefeated ? getEnemyType(newEnemyLevel) : null,
+    // Zwróć null jeśli pokonano Overlorda (ostatniego bossa) - koniec gry!
+    newEnemyType:
+      enemyDefeated && getEnemyType(state.enemyLevel).id !== "overlord"
+        ? getEnemyType(newEnemyLevel)
+        : null,
   };
 }
 
