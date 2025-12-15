@@ -101,11 +101,11 @@ describe("Math Problem Generation", () => {
     });
 
     it("should respect difficulty operators", () => {
-      const addOnlyDifficulty = DIFFICULTIES[0]; // Łatwy - tylko dodawanie
+      const easyDifficulty = DIFFICULTIES[0]; // Łatwy - dodawanie i odejmowanie
 
       for (let i = 0; i < 50; i++) {
-        const problem = generateProblem(addOnlyDifficulty);
-        expect(problem.operator).toBe("+");
+        const problem = generateProblem(easyDifficulty);
+        expect(["+", "-"]).toContain(problem.operator);
       }
     });
   });
@@ -337,9 +337,9 @@ describe("Game Constants", () => {
       }
     });
 
-    it("should have easy level with only addition", () => {
+    it("should have easy level with addition and subtraction", () => {
       const easy = DIFFICULTIES.find((d) => d.id === "easy");
-      expect(easy?.operators).toEqual(["+"]);
+      expect(easy?.operators).toEqual(["+", "-"]);
     });
   });
 

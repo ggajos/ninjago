@@ -5,7 +5,7 @@
  */
 
 import "./style.css";
-import type { GameState } from "./game";
+import type { GameState, EnemyType } from "./game";
 import {
   NINJAS,
   DIFFICULTIES,
@@ -18,6 +18,7 @@ import {
   selectNinja,
   selectDifficulty,
   formatProblem,
+  getEnemyType,
 } from "./game";
 import { playSound, getMuted, toggleMuted } from "./sounds";
 
@@ -28,7 +29,6 @@ import { playSound, getMuted, toggleMuted } from "./sounds";
 let gameState: GameState = createInitialState();
 let idleCheckInterval: number | null = null;
 let idleTimerInterval: number | null = null;
-let enemiesDefeated = 0;
 
 // ============================================================================
 // ELEMENTY DOM
@@ -58,6 +58,7 @@ const currentStreak = $("#current-streak");
 const backBtn = $("#back-btn");
 const ninjaAvatar = $("#ninja-avatar");
 const enemyAvatar = $("#enemy-avatar");
+const enemyNameDisplay = $("#enemy-name");
 const problemDisplay = $("#problem-display");
 const answerInput = $<HTMLInputElement>("#answer-input");
 const answerDisplay = $("#answer-display");
@@ -137,47 +138,178 @@ function createNinjaAvatarSVG(
 }
 
 /**
- * Generuje SVG wroga (szkielet wojownik)
+ * Generuje SVG wroga na podstawie typu
  */
-function createEnemyAvatarSVG(size: number = 120): string {
+function createEnemyAvatarSVG(
+  enemy: EnemyType,
+  baseSize: number = 120
+): string {
+  const size = Math.floor(baseSize * enemy.scale);
+  const eyeColor = enemy.isBoss ? "#ff0000" : "#ff4444";
+  const glowIntensity = enemy.isBoss ? "0.4" : "0.2";
+
+  // Różne style dla różnych wrogów
+  let bodyContent = "";
+
+  switch (enemy.id) {
+    case "skeleton":
+    case "skeleton-warrior":
+      bodyContent = `
+        <!-- Ciało szkieleta -->
+        <ellipse cx="50" cy="72" rx="22" ry="18" fill="#2d2d2d"/>
+        <rect x="38" y="60" width="24" height="3" fill="#d4d4d4" rx="1"/>
+        <rect x="40" y="65" width="20" height="3" fill="#d4d4d4" rx="1"/>
+        <rect x="42" y="70" width="16" height="3" fill="#d4d4d4" rx="1"/>
+        <!-- Czaszka -->
+        <circle cx="50" cy="32" r="22" fill="#e8e8e8"/>
+        <ellipse cx="40" cy="30" rx="7" ry="8" fill="#1a1a1a"/>
+        <ellipse cx="60" cy="30" rx="7" ry="8" fill="#1a1a1a"/>
+        <circle cx="40" cy="30" r="3" fill="${eyeColor}"/>
+        <circle cx="60" cy="30" r="3" fill="${eyeColor}"/>
+        <path d="M 50 35 L 47 42 L 53 42 Z" fill="#1a1a1a"/>
+        <rect x="42" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
+        <rect x="48" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
+        <rect x="54" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
+        ${
+          enemy.id === "skeleton-warrior"
+            ? '<rect x="75" y="20" width="4" height="40" fill="#808080"/><rect x="72" y="55" width="10" height="4" fill="#8B4513"/>'
+            : ""
+        }
+      `;
+      break;
+    case "stone-warrior":
+      bodyContent = `
+        <!-- Kamienny wojownik -->
+        <ellipse cx="50" cy="70" rx="28" ry="22" fill="#5a534a"/>
+        <rect x="35" y="55" width="30" height="8" fill="#6b5b45" rx="2"/>
+        <circle cx="50" cy="32" r="25" fill="#6b5b45"/>
+        <ellipse cx="40" cy="30" rx="8" ry="6" fill="#1a1a1a"/>
+        <ellipse cx="60" cy="30" rx="8" ry="6" fill="#1a1a1a"/>
+        <circle cx="40" cy="30" r="4" fill="${eyeColor}"/>
+        <circle cx="60" cy="30" r="4" fill="${eyeColor}"/>
+        <rect x="38" y="45" width="24" height="8" fill="#4a4a4a" rx="2"/>
+      `;
+      break;
+    case "serpentine":
+      bodyContent = `
+        <!-- Serpentyn -->
+        <ellipse cx="50" cy="70" rx="20" ry="24" fill="#1a5a1a"/>
+        <path d="M 35 75 Q 25 85 30 95" stroke="#228b22" stroke-width="8" fill="none"/>
+        <circle cx="50" cy="30" r="24" fill="#228b22"/>
+        <ellipse cx="40" cy="28" rx="6" ry="10" fill="#ffff00"/>
+        <ellipse cx="60" cy="28" rx="6" ry="10" fill="#ffff00"/>
+        <ellipse cx="40" cy="30" rx="2" ry="6" fill="#000"/>
+        <ellipse cx="60" cy="30" rx="2" ry="6" fill="#000"/>
+        <path d="M 45 45 Q 50 52 55 45" stroke="#1a1a1a" stroke-width="2" fill="none"/>
+        <path d="M 48 48 L 50 55 L 52 48" fill="#ff0000"/>
+      `;
+      break;
+    case "nindroid":
+      bodyContent = `
+        <!-- Nindroid -->
+        <rect x="32" y="55" width="36" height="35" fill="#303030" rx="4"/>
+        <rect x="38" y="60" width="24" height="3" fill="#00ff00" opacity="0.5"/>
+        <rect x="38" y="66" width="24" height="3" fill="#00ff00" opacity="0.5"/>
+        <circle cx="50" cy="30" r="22" fill="#404040"/>
+        <rect x="30" y="25" width="40" height="15" fill="#505050" rx="2"/>
+        <rect x="35" cy="28" width="12" height="8" fill="#ff0000"/>
+        <rect x="53" cy="28" width="12" height="8" fill="#ff0000"/>
+        <rect x="45" y="40" width="10" height="3" fill="#606060"/>
+      `;
+      break;
+    case "ghost":
+      bodyContent = `
+        <!-- Duch -->
+        <ellipse cx="50" cy="65" rx="25" ry="30" fill="#00ff88" opacity="0.6"/>
+        <path d="M 25 70 Q 30 95 40 90 Q 50 95 60 90 Q 70 95 75 70" fill="#00ff88" opacity="0.6"/>
+        <circle cx="50" cy="35" r="22" fill="#00ff88" opacity="0.8"/>
+        <ellipse cx="40" cy="33" rx="8" ry="10" fill="#000"/>
+        <ellipse cx="60" cy="33" rx="8" ry="10" fill="#000"/>
+        <circle cx="42" cy="32" r="3" fill="#00ffff"/>
+        <circle cx="62" cy="32" r="3" fill="#00ffff"/>
+        <ellipse cx="50" cy="50" rx="8" ry="6" fill="#000" opacity="0.5"/>
+      `;
+      break;
+    case "oni":
+      bodyContent = `
+        <!-- Oni -->
+        <ellipse cx="50" cy="70" rx="26" ry="22" fill="#4a0000"/>
+        <circle cx="50" cy="32" r="26" fill="#8b0000"/>
+        <!-- Rogi -->
+        <path d="M 30 20 L 25 5 L 35 15" fill="#1a1a1a"/>
+        <path d="M 70 20 L 75 5 L 65 15" fill="#1a1a1a"/>
+        <ellipse cx="38" cy="30" rx="8" ry="6" fill="#ffff00"/>
+        <ellipse cx="62" cy="30" rx="8" ry="6" fill="#ffff00"/>
+        <circle cx="38" cy="30" r="3" fill="#000"/>
+        <circle cx="62" cy="30" r="3" fill="#000"/>
+        <rect x="35" y="45" width="30" height="10" fill="#1a1a1a" rx="2"/>
+        <rect x="40" y="47" width="5" height="8" fill="#fff"/>
+        <rect x="48" y="47" width="5" height="8" fill="#fff"/>
+        <rect x="56" y="47" width="5" height="8" fill="#fff"/>
+      `;
+      break;
+    case "dragon-hunter":
+      bodyContent = `
+        <!-- Łowca Smoków -->
+        <ellipse cx="50" cy="70" rx="24" ry="20" fill="#5c4033"/>
+        <rect x="35" y="55" width="30" height="12" fill="#8b4513"/>
+        <circle cx="50" cy="32" r="22" fill="#deb887"/>
+        <ellipse cx="40" cy="30" rx="5" ry="6" fill="#1a1a1a"/>
+        <ellipse cx="60" cy="30" rx="5" ry="6" fill="#1a1a1a"/>
+        <circle cx="40" cy="30" r="2" fill="${eyeColor}"/>
+        <circle cx="60" cy="30" r="2" fill="${eyeColor}"/>
+        <!-- Hełm -->
+        <path d="M 28 25 Q 50 5 72 25" fill="#404040"/>
+        <rect x="70" y="20" width="8" height="50" fill="#8b4513"/>
+        <path d="M 78 20 L 85 15 L 78 30" fill="#808080"/>
+      `;
+      break;
+    case "overlord":
+      bodyContent = `
+        <!-- Overlord -->
+        <ellipse cx="50" cy="68" rx="30" ry="26" fill="#0a0015"/>
+        <circle cx="50" cy="30" r="28" fill="#1a0033"/>
+        <!-- Korona cieni -->
+        <path d="M 22 20 L 30 0 L 38 15 L 50 -5 L 62 15 L 70 0 L 78 20" fill="#4a0080"/>
+        <ellipse cx="38" cy="28" rx="10" ry="8" fill="#8b00ff"/>
+        <ellipse cx="62" cy="28" rx="10" ry="8" fill="#8b00ff"/>
+        <circle cx="38" cy="28" r="4" fill="#ff00ff"/>
+        <circle cx="62" cy="28" r="4" fill="#ff00ff"/>
+        <!-- Trzecie oko -->
+        <ellipse cx="50" cy="15" rx="6" ry="5" fill="#ff0000"/>
+        <circle cx="50" cy="15" r="2" fill="#000"/>
+        <path d="M 35 50 Q 50 60 65 50" stroke="#8b00ff" stroke-width="3" fill="none"/>
+      `;
+      break;
+    default:
+      bodyContent = `
+        <ellipse cx="50" cy="72" rx="22" ry="18" fill="#2d2d2d"/>
+        <circle cx="50" cy="32" r="22" fill="#e8e8e8"/>
+        <circle cx="40" cy="30" r="3" fill="${eyeColor}"/>
+        <circle cx="60" cy="30" r="3" fill="${eyeColor}"/>
+      `;
+  }
+
   return `
-    <svg viewBox="0 0 100 100" width="${size}" height="${size}" class="enemy-svg">
-      <!-- Tło -->
-      <circle cx="50" cy="50" r="48" fill="#4a0080" opacity="0.2"/>
+    <svg viewBox="0 0 100 100" width="${size}" height="${size}" class="enemy-svg ${
+    enemy.isBoss ? "boss" : ""
+  }">
+      <!-- Tło z efektem glow dla bossów -->
+      <circle cx="50" cy="50" r="48" fill="${
+        enemy.color
+      }" opacity="${glowIntensity}"/>
+      ${
+        enemy.isBoss
+          ? `<circle cx="50" cy="50" r="48" fill="none" stroke="${enemy.color}" stroke-width="2" opacity="0.6"/>`
+          : ""
+      }
       
-      <!-- Ciało szkieleta -->
-      <ellipse cx="50" cy="72" rx="22" ry="18" fill="#2d2d2d"/>
-      
-      <!-- Kości żeber -->
-      <rect x="38" y="60" width="24" height="3" fill="#d4d4d4" rx="1"/>
-      <rect x="40" y="65" width="20" height="3" fill="#d4d4d4" rx="1"/>
-      <rect x="42" y="70" width="16" height="3" fill="#d4d4d4" rx="1"/>
-      
-      <!-- Czaszka -->
-      <circle cx="50" cy="32" r="22" fill="#e8e8e8"/>
-      
-      <!-- Oczodoły -->
-      <ellipse cx="40" cy="30" rx="7" ry="8" fill="#1a1a1a"/>
-      <ellipse cx="60" cy="30" rx="7" ry="8" fill="#1a1a1a"/>
-      
-      <!-- Czerwone oczy -->
-      <circle cx="40" cy="30" r="3" fill="#ff0000"/>
-      <circle cx="60" cy="30" r="3" fill="#ff0000"/>
-      
-      <!-- Nos -->
-      <path d="M 50 35 L 47 42 L 53 42 Z" fill="#1a1a1a"/>
-      
-      <!-- Zęby -->
-      <rect x="42" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
-      <rect x="48" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
-      <rect x="54" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
-      
-      <!-- Miecz -->
-      <rect x="75" y="20" width="4" height="40" fill="#808080"/>
-      <rect x="72" y="55" width="10" height="4" fill="#8B4513"/>
+      ${bodyContent}
       
       <!-- Emoji -->
-      <text x="50" y="92" text-anchor="middle" font-size="16">💀</text>
+      <text x="50" y="95" text-anchor="middle" font-size="${
+        enemy.isBoss ? 18 : 14
+      }">${enemy.emoji}</text>
     </svg>
   `;
 }
@@ -248,7 +380,9 @@ function renderGameScreen(): void {
   currentStreak.textContent = String(gameState.streak);
 
   ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
-  enemyAvatar.innerHTML = createEnemyAvatarSVG(120);
+  const currentEnemyType = getEnemyType(gameState.enemyLevel);
+  enemyAvatar.innerHTML = createEnemyAvatarSVG(currentEnemyType, 120);
+  updateEnemyNameDisplay(currentEnemyType);
 
   if (gameState.currentProblem) {
     problemDisplay.textContent = formatProblem(gameState.currentProblem);
@@ -271,9 +405,6 @@ function renderGameScreen(): void {
   answerInput.value = "";
   answerInput.focus();
 
-  // Reset enemies counter
-  enemiesDefeated = 0;
-
   // Start idle timer
   startIdleTimer();
 }
@@ -295,6 +426,14 @@ function updateHealthBars(): void {
   // Zmiana koloru przy niskim zdrowiu
   playerHealthFill.classList.toggle("low-health", playerPercent <= 30);
   enemyHealthFill.classList.toggle("low-health", enemyPercent <= 30);
+}
+
+/**
+ * Aktualizuje wyświetlanie nazwy wroga
+ */
+function updateEnemyNameDisplay(enemy: EnemyType): void {
+  enemyNameDisplay.textContent = `${enemy.emoji} ${enemy.name}`;
+  enemyNameDisplay.classList.toggle("boss-name", enemy.id === "boss");
 }
 
 /**
@@ -363,7 +502,7 @@ function showGameOver(): void {
 
   finalScore.textContent = String(gameState.score);
   finalCorrect.textContent = String(gameState.correctAnswers);
-  finalEnemies.textContent = String(enemiesDefeated);
+  finalEnemies.textContent = String(gameState.enemiesDefeated);
 
   gameScreen.classList.add("hidden");
   gameoverScreen.classList.remove("hidden");
@@ -559,10 +698,27 @@ function handleSubmit(): void {
 
   // Sprawdź czy wróg pokonany
   if (result.enemyDefeated) {
-    enemiesDefeated++;
     playSound("victory");
     battleEffect.classList.add("enemy-defeated");
     setTimeout(() => battleEffect.classList.remove("enemy-defeated"), 1000);
+
+    // Spawn nowego wroga z animacją
+    if (result.newEnemyType) {
+      setTimeout(() => {
+        const newEnemyType = getEnemyType(gameState.enemyLevel);
+        enemyAvatar.classList.add("enemy-spawn");
+        enemyAvatar.innerHTML = createEnemyAvatarSVG(newEnemyType, 120);
+        updateEnemyNameDisplay(newEnemyType);
+        updateHealthBars();
+
+        // Pokaż nazwę nowego wroga
+        ninjaMessage.textContent = `Nowy przeciwnik: ${newEnemyType.emoji} ${newEnemyType.name}!`;
+
+        setTimeout(() => {
+          enemyAvatar.classList.remove("enemy-spawn");
+        }, 600);
+      }, 800);
+    }
   }
 
   // Sprawdź czy gracz przegrał
@@ -665,7 +821,6 @@ document.addEventListener("keydown", (e) => {
  */
 restartBtn.addEventListener("click", () => {
   playSound("start");
-  enemiesDefeated = 0;
   const currentNinja = gameState.currentNinja;
   const difficulty = gameState.difficulty;
 
@@ -685,7 +840,9 @@ restartBtn.addEventListener("click", () => {
     gameState.currentNinja.color
   );
   updateHealthBars();
-  enemyAvatar.innerHTML = createEnemyAvatarSVG(120);
+  const initialEnemyType = getEnemyType(gameState.enemyLevel);
+  enemyAvatar.innerHTML = createEnemyAvatarSVG(initialEnemyType, 120);
+  updateEnemyNameDisplay(initialEnemyType);
 
   // Pokaż ekran gry
   showScreen("game");
@@ -698,7 +855,6 @@ restartBtn.addEventListener("click", () => {
  */
 menuBtn.addEventListener("click", () => {
   playSound("click");
-  enemiesDefeated = 0;
   showScreen("start");
 });
 

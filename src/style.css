@@ -816,6 +816,38 @@ h2 {
   animation: fighterIdleEnemy 2s ease-in-out infinite 0.5s;
 }
 
+/* Enemy name display */
+.enemy-name-container {
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.enemy-name {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.9), rgba(100, 50, 20, 0.9));
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 2px solid #daa520;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.enemy-name.boss-name {
+  background: linear-gradient(135deg, rgba(180, 0, 0, 0.95), rgba(100, 0, 0, 0.95));
+  border-color: #ff4444;
+  animation: bossNamePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes bossNamePulse {
+  0%, 100% { box-shadow: 0 2px 6px rgba(255, 0, 0, 0.3); }
+  50% { box-shadow: 0 2px 16px rgba(255, 0, 0, 0.6); }
+}
+
 @keyframes fighterIdle {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
@@ -961,6 +993,38 @@ h2 {
   0% { opacity: 0; transform: scale(0) rotate(-180deg); }
   50% { opacity: 1; transform: scale(1.3) rotate(0deg); }
   100% { opacity: 0; transform: scale(0.5) translateY(-50px) rotate(180deg); }
+}
+
+/* Animacja spawn nowego wroga */
+.enemy-spawn {
+  animation: enemySpawnIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes enemySpawnIn {
+  0% { 
+    opacity: 0; 
+    transform: scale(0) rotate(-180deg);
+    filter: brightness(2) blur(10px);
+  }
+  50% {
+    opacity: 0.7;
+    filter: brightness(1.5) blur(3px);
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1) blur(0);
+  }
+}
+
+/* Efekt boss'a - pulsujące światło */
+.enemy-avatar .boss-glow {
+  animation: bossGlow 2s ease-in-out infinite;
+}
+
+@keyframes bossGlow {
+  0%, 100% { filter: drop-shadow(0 0 10px #ff0000) drop-shadow(0 0 20px #ff4400); }
+  50% { filter: drop-shadow(0 0 20px #ff4400) drop-shadow(0 0 40px #ff0000); }
 }
 
 /* Damage popup */

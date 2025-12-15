@@ -60,6 +60,9 @@ export interface GameState {
   maxEnemyHealth: number;
   isGameOver: boolean;
   lastAnswerTime: number; // timestamp ostatniej odpowiedzi (dla idle attack)
+  // Enemy progression
+  enemyLevel: number; // poziom wroga (1 = szkielet, 2+ = bossy)
+  enemiesDefeated: number; // licznik pokonanych wrogów
 }
 
 /** Dane zapisywane w localStorage */
@@ -241,14 +244,134 @@ const STORAGE_KEY = "ninjago-math-game-save";
 
 export const COMBAT_CONFIG = {
   PLAYER_MAX_HEALTH: 100,
-  ENEMY_MAX_HEALTH: 100,
+  ENEMY_BASE_HEALTH: 100, // bazowe zdrowie wroga (poziom 1)
+  ENEMY_HEALTH_INCREMENT: 20, // przyrost zdrowia za każdy poziom
   PLAYER_ATTACK_DAMAGE: 15, // obrażenia zadawane wrogowi przy poprawnej odpowiedzi
   ENEMY_ATTACK_DAMAGE: 20, // obrażenia od wroga przy złej odpowiedzi
   IDLE_ATTACK_DAMAGE: 10, // obrażenia od wroga gdy gracz jest nieaktywny
-  IDLE_TIMEOUT_MS: 12000, // czas nieaktywności po którym wróg atakuje (12 sekund)
+  IDLE_TIMEOUT_MS: 15000, // czas nieaktywności po którym wróg atakuje (15 sekund)
   HEALTH_REGEN_ON_HIT: 5, // regeneracja zdrowia przy poprawnej odpowiedzi
   STREAK_BONUS_DAMAGE: 3, // bonus do obrażeń za każdą serię (max 5)
+  SKELETON_REPEATS: 3, // ile razy powtarza się mały szkielet przed bossem
 };
+
+// ============================================================================
+// TYPY WROGÓW
+// ============================================================================
+
+export interface EnemyType {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  scale: number; // skala rozmiaru (1 = normalny)
+  isBoss: boolean;
+}
+
+export const ENEMY_TYPES: EnemyType[] = [
+  {
+    id: "skeleton",
+    name: "Szkielet",
+    emoji: "💀",
+    color: "#4a0080",
+    scale: 1.0,
+    isBoss: false,
+  },
+  {
+    id: "skeleton-warrior",
+    name: "Szkielet Wojownik",
+    emoji: "⚔️",
+    color: "#5a1090",
+    scale: 1.1,
+    isBoss: false,
+  },
+  {
+    id: "stone-warrior",
+    name: "Kamienny Wojownik",
+    emoji: "🗿",
+    color: "#6b5b45",
+    scale: 1.2,
+    isBoss: true,
+  },
+  {
+    id: "serpentine",
+    name: "Serpentyn",
+    emoji: "🐍",
+    color: "#228b22",
+    scale: 1.3,
+    isBoss: true,
+  },
+  {
+    id: "nindroid",
+    name: "Nindroid",
+    emoji: "🤖",
+    color: "#404040",
+    scale: 1.4,
+    isBoss: true,
+  },
+  {
+    id: "ghost",
+    name: "Duch",
+    emoji: "👻",
+    color: "#00ff88",
+    scale: 1.5,
+    isBoss: true,
+  },
+  {
+    id: "oni",
+    name: "Oni",
+    emoji: "👹",
+    color: "#8b0000",
+    scale: 1.6,
+    isBoss: true,
+  },
+  {
+    id: "dragon-hunter",
+    name: "Łowca Smoków",
+    emoji: "🏹",
+    color: "#8b4513",
+    scale: 1.7,
+    isBoss: true,
+  },
+  {
+    id: "overlord",
+    name: "Overlord",
+    emoji: "😈",
+    color: "#1a0033",
+    scale: 2.0,
+    isBoss: true,
+  },
+];
+
+/**
+ * Zwraca typ wroga na podstawie poziomu
+ */
+export function getEnemyType(level: number): EnemyType {
+  // Poziomy 1-3: losowe szkielety (powtarzają się)
+  if (level <= COMBAT_CONFIG.SKELETON_REPEATS) {
+    return Math.random() < 0.7 ? ENEMY_TYPES[0] : ENEMY_TYPES[1];
+  }
+
+  // Od poziomu 4: kolejni bossi
+  const bossIndex = Math.min(
+    level - COMBAT_CONFIG.SKELETON_REPEATS + 1,
+    ENEMY_TYPES.length - 1
+  );
+  return ENEMY_TYPES[bossIndex];
+}
+
+/**
+ * Oblicza zdrowie wroga na podstawie poziomu
+ */
+export function getEnemyHealth(level: number): number {
+  const enemy = getEnemyType(level);
+  const baseHealth = COMBAT_CONFIG.ENEMY_BASE_HEALTH;
+
+  // Zdrowie bazowane na skali typu wroga plus wzrost za poziom
+  const levelBonus =
+    Math.max(0, level - 1) * COMBAT_CONFIG.ENEMY_HEALTH_INCREMENT;
+  return Math.floor(baseHealth * enemy.scale + levelBonus);
+}
 
 // ============================================================================
 // FUNKCJE - GENEROWANIE ZADAŃ
@@ -409,10 +532,13 @@ export function createInitialState(): GameState {
     // Combat system
     playerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
     maxPlayerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
-    enemyHealth: COMBAT_CONFIG.ENEMY_MAX_HEALTH,
-    maxEnemyHealth: COMBAT_CONFIG.ENEMY_MAX_HEALTH,
+    enemyHealth: getEnemyHealth(1),
+    maxEnemyHealth: getEnemyHealth(1),
     isGameOver: false,
     lastAnswerTime: Date.now(),
+    // Enemy progression
+    enemyLevel: 1,
+    enemiesDefeated: 0,
   };
 }
 
@@ -420,6 +546,7 @@ export function createInitialState(): GameState {
  * Rozpoczyna nową rundę gry.
  */
 export function startGame(state: GameState): GameState {
+  const initialEnemyHealth = getEnemyHealth(1);
   return {
     ...state,
     score: 0,
@@ -431,10 +558,13 @@ export function startGame(state: GameState): GameState {
     // Reset combat
     playerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
     maxPlayerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
-    enemyHealth: COMBAT_CONFIG.ENEMY_MAX_HEALTH,
-    maxEnemyHealth: COMBAT_CONFIG.ENEMY_MAX_HEALTH,
+    enemyHealth: initialEnemyHealth,
+    maxEnemyHealth: initialEnemyHealth,
     isGameOver: false,
     lastAnswerTime: Date.now(),
+    // Reset enemy progression
+    enemyLevel: 1,
+    enemiesDefeated: 0,
   };
 }
 
@@ -454,6 +584,7 @@ export function processAnswer(
   playerDefeated: boolean;
   damageDealt: number;
   damageTaken: number;
+  newEnemyType: EnemyType | null;
 } {
   if (!state.currentProblem || state.isGameOver) {
     return {
@@ -466,6 +597,7 @@ export function processAnswer(
       playerDefeated: false,
       damageDealt: 0,
       damageTaken: 0,
+      newEnemyType: null,
     };
   }
 
@@ -477,6 +609,9 @@ export function processAnswer(
   let newHighScore = state.highScore;
   let newPlayerHealth = state.playerHealth;
   let newEnemyHealth = state.enemyHealth;
+  let newMaxEnemyHealth = state.maxEnemyHealth;
+  let newEnemyLevel = state.enemyLevel;
+  let newEnemiesDefeated = state.enemiesDefeated;
   let message: string;
   let damageDealt = 0;
   let damageTaken = 0;
@@ -510,10 +645,18 @@ export function processAnswer(
     // Sprawdź czy wróg pokonany
     if (newEnemyHealth <= 0) {
       enemyDefeated = true;
-      // Respawn wroga z pełnym zdrowiem
-      newEnemyHealth = state.maxEnemyHealth;
-      // Bonus punktów za pokonanie wroga
-      newScore += 50;
+      newEnemiesDefeated++;
+      newEnemyLevel++;
+
+      // Nowy wróg z nowym zdrowiem
+      const nextEnemyHealth = getEnemyHealth(newEnemyLevel);
+      newEnemyHealth = nextEnemyHealth;
+      newMaxEnemyHealth = nextEnemyHealth;
+
+      // Bonus punktów za pokonanie wroga (więcej za bossów)
+      const enemy = getEnemyType(state.enemyLevel);
+      const bossBonus = enemy.isBoss ? 100 : 50;
+      newScore += bossBonus;
       if (newScore > newHighScore) {
         newHighScore = newScore;
       }
@@ -542,8 +685,11 @@ export function processAnswer(
     correctAnswers: state.correctAnswers + (isCorrect ? 1 : 0),
     playerHealth: newPlayerHealth,
     enemyHealth: newEnemyHealth,
+    maxEnemyHealth: newMaxEnemyHealth,
     isGameOver: playerDefeated,
     lastAnswerTime: Date.now(),
+    enemyLevel: newEnemyLevel,
+    enemiesDefeated: newEnemiesDefeated,
   };
 
   // Zapisz postęp
@@ -563,6 +709,7 @@ export function processAnswer(
     playerDefeated,
     damageDealt,
     damageTaken,
+    newEnemyType: enemyDefeated ? getEnemyType(newEnemyLevel) : null,
   };
 }
 
