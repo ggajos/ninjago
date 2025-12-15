@@ -216,11 +216,15 @@ const menuBtn = $("#menu-btn");
 
 /**
  * Pokazuje dramatyczne intro z historią
+ * WAŻNE: Zatrzymuje pasek czasu (idle timer) na czas wyświetlania
  */
 function showStoryOverlay(
   story: { emoji: string; text: string },
   callback?: () => void
 ): void {
+  // Zatrzymaj idle timer na czas pokazywania historii
+  stopIdleTimer();
+
   const overlay = document.createElement("div");
   overlay.className = "story-overlay";
   overlay.innerHTML = `
@@ -234,6 +238,11 @@ function showStoryOverlay(
     overlay.classList.add("fade-out");
     setTimeout(() => {
       overlay.remove();
+      // Wznów idle timer po zamknięciu historii
+      if (gameState.isGameActive && !gameState.isGameOver) {
+        gameState.lastAnswerTime = Date.now(); // Reset czasu odpowiedzi
+        startIdleTimer();
+      }
       if (callback) callback();
     }, 500);
   };
