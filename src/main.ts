@@ -19,6 +19,7 @@ import {
   selectDifficulty,
   formatProblem,
   getEnemyType,
+  getIdleTimeout,
 } from "./game";
 import { playSound, getMuted, toggleMuted } from "./sounds";
 
@@ -55,6 +56,7 @@ const muteBtn = $("#mute-btn");
 // Game screen
 const currentScore = $("#current-score");
 const currentStreak = $("#current-streak");
+const currentDamage = $("#current-damage");
 const backBtn = $("#back-btn");
 const ninjaAvatar = $("#ninja-avatar");
 const enemyAvatar = $("#enemy-avatar");
@@ -378,6 +380,7 @@ function renderStartScreen(): void {
 function renderGameScreen(): void {
   currentScore.textContent = String(gameState.score);
   currentStreak.textContent = String(gameState.streak);
+  updateDamageDisplay();
 
   ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
   const currentEnemyType = getEnemyType(gameState.enemyLevel);
@@ -426,6 +429,24 @@ function updateHealthBars(): void {
   // Zmiana koloru przy niskim zdrowiu
   playerHealthFill.classList.toggle("low-health", playerPercent <= 30);
   enemyHealthFill.classList.toggle("low-health", enemyPercent <= 30);
+}
+
+/**
+ * Oblicza aktualne obrażenia na podstawie streaka
+ */
+function calculateCurrentDamage(): number {
+  const streakBonus = Math.min(gameState.streak, 5);
+  return (
+    COMBAT_CONFIG.PLAYER_ATTACK_DAMAGE +
+    streakBonus * COMBAT_CONFIG.STREAK_BONUS_DAMAGE
+  );
+}
+
+/**
+ * Aktualizuje wyświetlanie obrażeń
+ */
+function updateDamageDisplay(): void {
+  currentDamage.textContent = String(calculateCurrentDamage());
 }
 
 /**
@@ -546,10 +567,8 @@ function updateIdleTimerBar(): void {
   }
 
   const elapsed = Date.now() - gameState.lastAnswerTime;
-  const percent = Math.max(
-    0,
-    100 - (elapsed / COMBAT_CONFIG.IDLE_TIMEOUT_MS) * 100
-  );
+  const timeout = getIdleTimeout(gameState.enemyLevel);
+  const percent = Math.max(0, 100 - (elapsed / timeout) * 100);
   idleTimerFill.style.width = `${percent}%`;
 
   // Czerwieni się gdy mało czasu
@@ -695,6 +714,7 @@ function handleSubmit(): void {
   // Aktualizuj wynik
   currentScore.textContent = String(gameState.score);
   currentStreak.textContent = String(gameState.streak);
+  updateDamageDisplay();
 
   // Sprawdź czy wróg pokonany
   if (result.enemyDefeated) {
@@ -834,6 +854,7 @@ restartBtn.addEventListener("click", () => {
   problemDisplay.textContent = formatProblem(gameState.currentProblem!);
   currentScore.textContent = "0";
   currentStreak.textContent = "0";
+  updateDamageDisplay();
   ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
   document.documentElement.style.setProperty(
     "--current-ninja-color",

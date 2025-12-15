@@ -249,7 +249,8 @@ export const COMBAT_CONFIG = {
   PLAYER_ATTACK_DAMAGE: 15, // obrażenia zadawane wrogowi przy poprawnej odpowiedzi
   ENEMY_ATTACK_DAMAGE: 20, // obrażenia od wroga przy złej odpowiedzi
   IDLE_ATTACK_DAMAGE: 10, // obrażenia od wroga gdy gracz jest nieaktywny
-  IDLE_TIMEOUT_MS: 15000, // czas nieaktywności po którym wróg atakuje (15 sekund)
+  IDLE_TIMEOUT_MAX_MS: 15000, // maksymalny czas nieaktywności (poziom 1)
+  IDLE_TIMEOUT_MIN_MS: 8000, // minimalny czas nieaktywności (finalny boss)
   HEALTH_REGEN_ON_HIT: 5, // regeneracja zdrowia przy poprawnej odpowiedzi
   STREAK_BONUS_DAMAGE: 3, // bonus do obrażeń za każdą serię (max 5)
   SKELETON_REPEATS: 3, // ile razy powtarza się mały szkielet przed bossem
@@ -746,12 +747,25 @@ export function processIdleAttack(state: GameState): {
 }
 
 /**
+ * Oblicza timeout na podstawie poziomu wroga.
+ * Od 15s (poziom 1) do 8s (finalny boss - poziom 10+)
+ */
+export function getIdleTimeout(level: number): number {
+  const maxLevel = ENEMY_TYPES.length + COMBAT_CONFIG.SKELETON_REPEATS - 1; // ~11
+  const progress = Math.min(level - 1, maxLevel - 1) / (maxLevel - 1); // 0 do 1
+  const range =
+    COMBAT_CONFIG.IDLE_TIMEOUT_MAX_MS - COMBAT_CONFIG.IDLE_TIMEOUT_MIN_MS;
+  return Math.floor(COMBAT_CONFIG.IDLE_TIMEOUT_MAX_MS - progress * range);
+}
+
+/**
  * Sprawdza czy minął czas na idle attack.
  */
 export function shouldIdleAttack(state: GameState): boolean {
   if (!state.isGameActive || state.isGameOver) return false;
   const elapsed = Date.now() - state.lastAnswerTime;
-  return elapsed >= COMBAT_CONFIG.IDLE_TIMEOUT_MS;
+  const timeout = getIdleTimeout(state.enemyLevel);
+  return elapsed >= timeout;
 }
 
 /**

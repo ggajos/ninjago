@@ -376,17 +376,28 @@ h2 {
   margin-bottom: var(--space-lg);
 }
 
-.score-display, .streak-display {
+.score-display, .streak-display, .damage-display {
   font-size: 1.25rem;
   display: flex;
   align-items: center;
   gap: var(--space-xs);
 }
 
-#current-score, #current-streak {
+#current-score, #current-streak, #current-damage {
   font-weight: 700;
   color: var(--accent-gold);
   font-size: 1.5rem;
+}
+
+.damage-display {
+  background: linear-gradient(135deg, rgba(255, 68, 68, 0.2), rgba(255, 100, 100, 0.1));
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+}
+
+#current-damage {
+  color: #ff6b6b;
 }
 
 /* ============================================================================

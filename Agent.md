@@ -76,6 +76,7 @@ nijnjago/
 - `processIdleAttack()` - atak wroga przy nieaktywności
 - `getEnemyType(level)` - zwraca typ wroga dla poziomu
 - `getEnemyHealth(level)` - oblicza HP wroga
+- `getIdleTimeout(level)` - oblicza timeout (15s→8s w miarę poziomu)
 - `createInitialState()` / `startGame()` - inicjalizacja
 
 ### `src/main.ts` - UI i renderowanie
