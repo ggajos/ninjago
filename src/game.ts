@@ -245,7 +245,7 @@ export const COMBAT_CONFIG = {
   PLAYER_ATTACK_DAMAGE: 15, // obrażenia zadawane wrogowi przy poprawnej odpowiedzi
   ENEMY_ATTACK_DAMAGE: 20, // obrażenia od wroga przy złej odpowiedzi
   IDLE_ATTACK_DAMAGE: 10, // obrażenia od wroga gdy gracz jest nieaktywny
-  IDLE_TIMEOUT_MS: 8000, // czas nieaktywności po którym wróg atakuje (8 sekund)
+  IDLE_TIMEOUT_MS: 12000, // czas nieaktywności po którym wróg atakuje (12 sekund)
   HEALTH_REGEN_ON_HIT: 5, // regeneracja zdrowia przy poprawnej odpowiedzi
   STREAK_BONUS_DAMAGE: 3, // bonus do obrażeń za każdą serię (max 5)
 };

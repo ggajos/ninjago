@@ -572,16 +572,18 @@ function handleSubmit(): void {
     return;
   }
 
-  // Nowe zadanie po krótkim opóźnieniu
+  // Nowe zadanie natychmiast
+  if (gameState.currentProblem && !gameState.isGameOver) {
+    problemDisplay.textContent = formatProblem(gameState.currentProblem);
+  }
+  answerInput.value = "";
+  answerDisplay.textContent = "?";
+
+  // Wyczyść feedback po krótkim czasie
   setTimeout(() => {
-    if (gameState.currentProblem && !gameState.isGameOver) {
-      problemDisplay.textContent = formatProblem(gameState.currentProblem);
-    }
-    answerInput.value = "";
-    answerDisplay.textContent = "?";
     feedback.textContent = "";
     ninjaMessage.textContent = "";
-  }, 1500);
+  }, 1000);
 }
 
 // ============================================================================
@@ -601,7 +603,7 @@ function updateAnswerDisplay(): void {
 numpad.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   const num = target.dataset.num;
-  
+
   if (num !== undefined && !gameState.isGameOver) {
     playSound("click");
     // Limit do 4 cyfr
@@ -637,10 +639,10 @@ attackBtn.addEventListener("click", () => {
  */
 document.addEventListener("keydown", (e) => {
   if (!gameState.isGameActive || gameState.isGameOver) return;
-  
+
   // Tylko na ekranie gry
   if (gameScreen.classList.contains("hidden")) return;
-  
+
   if (e.key >= "0" && e.key <= "9") {
     if (answerInput.value.length < 4) {
       answerInput.value += e.key;
