@@ -60,9 +60,14 @@ const ninjaAvatar = $("#ninja-avatar");
 const enemyAvatar = $("#enemy-avatar");
 const problemDisplay = $("#problem-display");
 const answerInput = $<HTMLInputElement>("#answer-input");
-const submitBtn = $("#submit-btn");
+const answerDisplay = $("#answer-display");
 const feedback = $("#feedback");
 const ninjaMessage = $("#ninja-message");
+
+// Custom keyboard
+const numpad = $(".numpad");
+const backspaceBtn = $("#backspace-btn");
+const attackBtn = $("#attack-btn");
 
 // Health bars
 const playerHealthFill = $("#player-health-fill");
@@ -517,8 +522,8 @@ function handleSubmit(): void {
   const userAnswer = parseInt(answerInput.value, 10);
 
   if (isNaN(userAnswer)) {
-    answerInput.classList.add("shake");
-    setTimeout(() => answerInput.classList.remove("shake"), 500);
+    answerDisplay.classList.add("shake");
+    setTimeout(() => answerDisplay.classList.remove("shake"), 500);
     return;
   }
 
@@ -573,28 +578,84 @@ function handleSubmit(): void {
       problemDisplay.textContent = formatProblem(gameState.currentProblem);
     }
     answerInput.value = "";
-    answerInput.focus();
+    answerDisplay.textContent = "?";
     feedback.textContent = "";
     ninjaMessage.textContent = "";
   }, 1500);
 }
 
-submitBtn.addEventListener("click", handleSubmit);
+// ============================================================================
+// CUSTOM KEYBOARD
+// ============================================================================
 
-answerInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") {
+/**
+ * Aktualizuje wyświetlacz odpowiedzi
+ */
+function updateAnswerDisplay(): void {
+  answerDisplay.textContent = answerInput.value || "?";
+}
+
+/**
+ * Obsługa klawiszy numerycznych
+ */
+numpad.addEventListener("click", (e) => {
+  const target = e.target as HTMLElement;
+  const num = target.dataset.num;
+  
+  if (num !== undefined && !gameState.isGameOver) {
+    playSound("click");
+    // Limit do 4 cyfr
+    if (answerInput.value.length < 4) {
+      answerInput.value += num;
+      updateAnswerDisplay();
+    }
+  }
+});
+
+/**
+ * Obsługa backspace
+ */
+backspaceBtn.addEventListener("click", () => {
+  if (!gameState.isGameOver && answerInput.value.length > 0) {
+    playSound("click");
+    answerInput.value = answerInput.value.slice(0, -1);
+    updateAnswerDisplay();
+  }
+});
+
+/**
+ * Obsługa ataku (submit)
+ */
+attackBtn.addEventListener("click", () => {
+  if (!gameState.isGameOver) {
     handleSubmit();
   }
 });
 
 /**
- * Scroll do inputa gdy klawiatura się pojawi na mobile
+ * Obsługa klawiatury fizycznej (dla desktopa)
  */
-answerInput.addEventListener("focus", () => {
-  // Małe opóźnienie żeby klawiatura zdążyła się pojawić
-  setTimeout(() => {
-    answerInput.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 300);
+document.addEventListener("keydown", (e) => {
+  if (!gameState.isGameActive || gameState.isGameOver) return;
+  
+  // Tylko na ekranie gry
+  if (gameScreen.classList.contains("hidden")) return;
+  
+  if (e.key >= "0" && e.key <= "9") {
+    if (answerInput.value.length < 4) {
+      answerInput.value += e.key;
+      updateAnswerDisplay();
+      playSound("click");
+    }
+  } else if (e.key === "Backspace") {
+    if (answerInput.value.length > 0) {
+      answerInput.value = answerInput.value.slice(0, -1);
+      updateAnswerDisplay();
+      playSound("click");
+    }
+  } else if (e.key === "Enter") {
+    handleSubmit();
+  }
 });
 
 /**
@@ -627,7 +688,7 @@ restartBtn.addEventListener("click", () => {
   // Pokaż ekran gry
   showScreen("game");
   answerInput.value = "";
-  answerInput.focus();
+  answerDisplay.textContent = "?";
 });
 
 /**

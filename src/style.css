@@ -443,51 +443,148 @@ h2 {
 }
 
 /* ============================================================================
-   ANSWER INPUT
+   ANSWER DISPLAY & CUSTOM KEYBOARD
    ============================================================================ */
 
-.answer-container {
+.answer-display-container {
   display: flex;
-  gap: var(--space-md);
-  align-items: center;
-  margin-bottom: var(--space-lg);
-  /* Zapewnia widoczność nad klawiaturą mobilną */
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  justify-content: center;
+  margin-bottom: var(--space-md);
 }
 
-.answer-input {
+.answer-display {
   font-family: var(--font-display);
-  font-size: 2rem;
-  width: 120px;
-  padding: var(--space-md);
+  font-size: 2.5rem;
+  min-width: 120px;
+  padding: var(--space-sm) var(--space-lg);
   text-align: center;
   border: 3px solid var(--current-ninja-color);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--bg-dark);
-  outline: none;
-  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-.answer-input:focus {
-  box-shadow: 0 0 20px var(--current-ninja-color);
-  transform: scale(1.05);
-}
-
-.answer-input.shake {
+.answer-display.shake {
   animation: shake 0.5s ease;
   border-color: var(--error);
 }
 
-/* Hide number input spinners */
-.answer-input::-webkit-outer-spin-button,
-.answer-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+/* Keyboard wrapper - numpad + actions side by side */
+.keyboard-wrapper {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: center;
+  margin-bottom: var(--space-md);
+  padding: 0 var(--space-sm);
 }
 
-.answer-input[type=number] {
-  -moz-appearance: textfield;
+/* Numpad grid - 3x4 */
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.numpad-btn {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  width: 52px;
+  height: 48px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.numpad-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.numpad-btn:active {
+  background: var(--current-ninja-color);
+  transform: scale(0.95);
+}
+
+/* Zero button spans 2 columns */
+.numpad-zero {
+  grid-column: span 2;
+  width: auto;
+}
+
+/* Action buttons column */
+.keyboard-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.action-btn {
+  font-size: 1.75rem;
+  width: 64px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Backspace button - top, smaller */
+.action-backspace {
+  height: 48px;
+  background: rgba(255, 100, 100, 0.3);
+  color: var(--text-primary);
+}
+
+.action-backspace:hover {
+  background: rgba(255, 100, 100, 0.5);
+}
+
+.action-backspace:active {
+  background: var(--error);
+  transform: scale(0.95);
+}
+
+/* Attack button - bottom, bigger */
+.action-attack {
+  flex: 1;
+  min-height: 150px;
+  background: linear-gradient(135deg, var(--current-ninja-color), #ff6b00);
+  color: white;
+  font-size: 2.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.action-attack:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.action-attack:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Hide the actual input */
+#answer-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Legacy answer-container (hidden) */
+.answer-container {
+  display: none;
 }
 
 /* ============================================================================
@@ -585,57 +682,51 @@ h2 {
     border-radius: 0 0 var(--radius-md) var(--radius-md);
   }
   
-  .answer-container {
-    flex-direction: column;
-    /* Zapewnia że button jest widoczny nad klawiaturą */
-    padding-bottom: var(--space-xl);
-    margin-bottom: var(--space-xl);
-    scroll-margin-bottom: 100px;
-  }
-  
-  .answer-input {
-    width: 100%;
-    max-width: 200px;
-    /* Scroll do inputa gdy focus */
-    scroll-margin-top: 20px;
-    scroll-margin-bottom: 150px;
-  }
-  
   /* Mniejszy avatar na mobile aby zmieścić więcej treści */
   .ninja-avatar {
     margin: var(--space-sm) 0;
   }
   
   .ninja-avatar svg {
-    width: 100px;
-    height: 100px;
+    width: 80px;
+    height: 80px;
   }
   
   /* Mniejszy problem container na mobile */
   .problem-container {
-    padding: var(--space-md);
-    margin-bottom: var(--space-md);
+    padding: var(--space-sm);
+    margin-bottom: var(--space-sm);
   }
   
   .problem-display {
-    font-size: clamp(1.75rem, 8vw, 3rem);
+    font-size: clamp(1.5rem, 7vw, 2.5rem);
+  }
+  
+  /* Kompaktowy wyświetlacz odpowiedzi */
+  .answer-display {
+    font-size: 2rem;
+    padding: var(--space-xs) var(--space-md);
+    min-width: 100px;
   }
   
   /* Feedback i wiadomości bardziej kompaktowe */
   .feedback {
-    font-size: 1.25rem;
+    font-size: 1rem;
+    min-height: 1.5rem;
   }
   
   .ninja-message {
-    font-size: 1rem;
-    padding: var(--space-sm);
-    margin-bottom: var(--space-md);
+    font-size: 0.875rem;
+    padding: var(--space-xs);
+    margin-bottom: var(--space-sm);
+    min-height: 1rem;
   }
 }
 
 /* Landscape mode na mobile - jeszcze bardziej kompaktowy */
 @media (max-height: 500px) and (orientation: landscape) {
-  .ninja-avatar {
+  .ninja-avatar,
+  .enemy-avatar {
     display: none;
   }
   
@@ -644,12 +735,20 @@ h2 {
   }
   
   .problem-container {
-    padding: var(--space-sm);
-    margin-bottom: var(--space-sm);
+    padding: var(--space-xs);
+    margin-bottom: var(--space-xs);
   }
   
-  .answer-container {
-    flex-direction: row;
+  .keyboard-wrapper {
+    margin-bottom: var(--space-xs);
+  }
+  
+  .numpad-btn {
+    height: 40px;
+  }
+  
+  .action-attack {
+    min-height: 100px;
   }
 }
 

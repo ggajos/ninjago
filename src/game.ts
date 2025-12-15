@@ -200,8 +200,8 @@ export const DIFFICULTIES: DifficultyConfig[] = [
     name: "Easy",
     namePolish: "Łatwy",
     maxNumber: 10,
-    operators: ["+"],
-    description: "Dodawanie do 10",
+    operators: ["+", "-"],
+    description: "Dodawanie i odejmowanie do 10",
   },
   {
     id: "medium",
