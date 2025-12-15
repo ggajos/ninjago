@@ -10,8 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/ninjago/assets/index-D_IWnaPZ.js"></script>
-    <link rel="stylesheet" crossorigin href="/ninjago/assets/index-BKu5EvRk.css">
+    <script type="module" crossorigin src="/ninjago/assets/index-j17pBnBw.js"></script>
+    <link rel="stylesheet" crossorigin href="/ninjago/assets/index--5LPO65V.css">
   </head>
   <body>
     <div id="app">
@@ -102,18 +102,33 @@
           <div id="problem-display" class="problem-display"></div>
         </div>
         
-        <!-- Pole odpowiedzi -->
-        <div class="answer-container">
-          <input 
-            type="number" 
-            id="answer-input" 
-            class="answer-input" 
-            placeholder="?" 
-            autocomplete="off"
-            inputmode="numeric"
-          />
-          <button id="submit-btn" class="btn btn-submit">Sprawdź!</button>
+        <!-- Wyświetlacz odpowiedzi -->
+        <div class="answer-display-container">
+          <div id="answer-display" class="answer-display">?</div>
         </div>
+        
+        <!-- Klawiatura numeryczna z akcjami po prawej -->
+        <div class="keyboard-wrapper">
+          <div class="numpad">
+            <button class="numpad-btn" data-num="1">1</button>
+            <button class="numpad-btn" data-num="2">2</button>
+            <button class="numpad-btn" data-num="3">3</button>
+            <button class="numpad-btn" data-num="4">4</button>
+            <button class="numpad-btn" data-num="5">5</button>
+            <button class="numpad-btn" data-num="6">6</button>
+            <button class="numpad-btn" data-num="7">7</button>
+            <button class="numpad-btn" data-num="8">8</button>
+            <button class="numpad-btn" data-num="9">9</button>
+            <button class="numpad-btn numpad-zero" data-num="0">0</button>
+          </div>
+          <div class="keyboard-actions">
+            <button id="backspace-btn" class="action-btn action-backspace" aria-label="Usuń">⌫</button>
+            <button id="attack-btn" class="action-btn action-attack" aria-label="Atakuj!">⚔️</button>
+          </div>
+        </div>
+        
+        <!-- Ukryty input dla kompatybilności -->
+        <input type="hidden" id="answer-input" />
         
         <!-- Feedback -->
         <div id="feedback" class="feedback"></div>
