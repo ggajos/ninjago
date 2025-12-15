@@ -32,6 +32,46 @@ let idleCheckInterval: number | null = null;
 let idleTimerInterval: number | null = null;
 
 // ============================================================================
+// STORY & JOURNEY SYSTEM
+// ============================================================================
+
+const STORY_INTRO = {
+  emoji: "🏯",
+  text: "Ninjago jest w niebezpieczeństwie! Armia szkieletów zaatakowała miasto. Tylko TY możesz ich powstrzymać... używając mocy MATEMATYKI! 🧮⚡",
+};
+
+const BOSS_STORIES: Record<string, { emoji: string; text: string }> = {
+  "stone-warrior": {
+    emoji: "🗿",
+    text: "UWAGA! Kamienny Wojownik się zbliża! Ten starożytny strażnik jest niezniszczalny... prawie. Twoja inteligencja jest twoją bronią!",
+  },
+  serpentine: {
+    emoji: "🐍",
+    text: "Sssserpentyn wyłania się z cieni! Ten podstępny wąż hypnotyzuje swoje ofiary. Nie daj się zahipnotyzować - skup się na liczbach!",
+  },
+  nindroid: {
+    emoji: "🤖",
+    text: "ALERT SYSTEMU! Nindroid aktywowany. Ta maszyna wojenna oblicza 1000 działań na sekundę. Czy nadążysz?",
+  },
+  ghost: {
+    emoji: "👻",
+    text: "Temperatura spada... Duch z Królestwa Umarłych nawiedza arenę! Tylko czysty umysł może go pokonać!",
+  },
+  oni: {
+    emoji: "👹",
+    text: "DRŻYJ ŚMIERTELNIKU! Oni - demon z innego wymiaru - żąda twojej duszy! Pokaż mu moc ninja!",
+  },
+  "dragon-hunter": {
+    emoji: "🏹",
+    text: "Łowca Smoków namierzył nowy cel... CIEBIE! Ten bezwzględny myśliwy nigdy nie chybia. Bądź szybszy!",
+  },
+  overlord: {
+    emoji: "😈",
+    text: "⚠️ FINAŁOWA BITWA ⚠️\n\nOVERLORD - Władca Ciemności - powstał! To jest TO. Ostateczne starcie dobra ze złem. Cała nadzieja Ninjago spoczywa na TOBIE! 🌟",
+  },
+};
+
+// ============================================================================
 // ELEMENTY DOM
 // ============================================================================
 
@@ -92,6 +132,172 @@ const finalCorrect = $("#final-correct");
 const finalEnemies = $("#final-enemies");
 const restartBtn = $("#restart-btn");
 const menuBtn = $("#menu-btn");
+
+// ============================================================================
+// EPIC EFFECTS & STORY SYSTEM
+// ============================================================================
+
+/**
+ * Pokazuje dramatyczne intro z historią
+ */
+function showStoryOverlay(
+  story: { emoji: string; text: string },
+  callback?: () => void
+): void {
+  const overlay = document.createElement("div");
+  overlay.className = "story-overlay";
+  overlay.innerHTML = `
+    <div class="story-emoji">${story.emoji}</div>
+    <div class="story-text">${story.text}</div>
+    <div class="story-skip">Dotknij aby kontynuować...</div>
+  `;
+  document.body.appendChild(overlay);
+
+  const dismiss = () => {
+    overlay.classList.add("fade-out");
+    setTimeout(() => {
+      overlay.remove();
+      if (callback) callback();
+    }, 500);
+  };
+
+  overlay.addEventListener("click", dismiss);
+  overlay.addEventListener("touchstart", dismiss);
+
+  // Auto-dismiss after 5 seconds
+  setTimeout(() => {
+    if (document.body.contains(overlay)) {
+      dismiss();
+    }
+  }, 5000);
+}
+
+/**
+ * Efekt trzęsienia ekranu
+ */
+function screenShake(): void {
+  gameScreen.classList.add("screen-shake");
+  setTimeout(() => gameScreen.classList.remove("screen-shake"), 500);
+}
+
+/**
+ * Błysk pioruna
+ */
+function lightningFlash(): void {
+  const flash = document.createElement("div");
+  flash.className = "lightning-effect";
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 150);
+}
+
+/**
+ * Eksplozja cząsteczek
+ */
+function particleBurst(
+  x: number,
+  y: number,
+  color: string,
+  count: number = 12
+): void {
+  const container = document.createElement("div");
+  container.className = "particle-container";
+  container.style.left = `${x}px`;
+  container.style.top = `${y}px`;
+
+  for (let i = 0; i < count; i++) {
+    const particle = document.createElement("div");
+    particle.className = "particle";
+    particle.style.backgroundColor = color;
+
+    const angle = (i / count) * Math.PI * 2;
+    const distance = 50 + Math.random() * 100;
+    const tx = Math.cos(angle) * distance;
+    const ty = Math.sin(angle) * distance;
+
+    particle.style.setProperty("--tx", `${tx}px`);
+    particle.style.setProperty("--ty", `${ty}px`);
+
+    container.appendChild(particle);
+  }
+
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 1000);
+}
+
+/**
+ * Efekt combo
+ */
+function showComboEffect(streak: number): void {
+  if (streak < 3) return;
+
+  const combo = document.createElement("div");
+  combo.className = "combo-display";
+  combo.textContent = `${streak}x COMBO!`;
+
+  if (streak >= 5) {
+    combo.style.color = "#ff4444";
+    combo.style.textShadow =
+      "0 0 30px rgba(255, 68, 68, 0.8), 0 0 60px rgba(255, 0, 0, 0.6)";
+  }
+
+  document.body.appendChild(combo);
+  setTimeout(() => combo.remove(), 800);
+}
+
+/**
+ * Efekt ultimate attack przy wysokim combo
+ */
+function showUltimateAttack(): void {
+  const ultimate = document.createElement("div");
+  ultimate.className = "ultimate-attack";
+  document.body.appendChild(ultimate);
+  setTimeout(() => ultimate.remove(), 800);
+}
+
+/**
+ * Efekt level up przy pokonaniu bossa
+ */
+function showLevelUpEffect(bossName: string): void {
+  const levelUp = document.createElement("div");
+  levelUp.className = "level-up-effect";
+  levelUp.innerHTML = `⚔️ ${bossName} POKONANY! ⚔️`;
+  document.body.appendChild(levelUp);
+  setTimeout(() => levelUp.remove(), 1500);
+}
+
+/**
+ * Dramatyczne wejście bossa
+ */
+function showBossEntrance(enemy: EnemyType): void {
+  const storyData = BOSS_STORIES[enemy.id];
+  if (storyData) {
+    // Najpierw pokaż historię
+    showStoryOverlay(storyData, () => {
+      // Po zamknięciu historii - efekty wizualne
+      lightningFlash();
+      screenShake();
+      enemyAvatar.classList.add("boss-entrance");
+      setTimeout(() => {
+        enemyAvatar.classList.remove("boss-entrance");
+      }, 1500);
+    });
+  } else {
+    // Zwykły spawn dla nie-bossów
+    enemyAvatar.classList.add("enemy-spawn");
+    setTimeout(() => enemyAvatar.classList.remove("enemy-spawn"), 600);
+  }
+}
+
+/**
+ * EASTER EGG: Symulacja poprawnej odpowiedzi (klawisz ~)
+ * Dla szybkiego testowania rozgrywki
+ */
+function simulateCorrectAnswer(): void {
+  if (!gameState.currentProblem || gameState.isGameOver) return;
+  answerInput.value = String(gameState.currentProblem.correctAnswer);
+  updateAnswerDisplay();
+  handleSubmit();
+}
 
 // ============================================================================
 // RENDEROWANIE
@@ -689,21 +895,56 @@ function handleSubmit(): void {
   const result = processAnswer(gameState, userAnswer);
   gameState = result.state;
 
-  // Pokaż animacje walki i odtwórz dźwięki
+  // EPIC EFFECTS dla poprawnej odpowiedzi
   if (result.playerAttacked) {
     playSound("correct");
     playSound("attack");
     showAttackEffect("player");
     showDamagePopup("enemy", result.damageDealt);
-    // Pokaż heal jeśli gracz się uleczył
+
+    // Efekt power-up na ninja
+    ninjaAvatar.classList.add("power-up");
+    setTimeout(() => ninjaAvatar.classList.remove("power-up"), 500);
+
+    // Combo effects
+    if (gameState.streak >= 3) {
+      showComboEffect(gameState.streak);
+    }
+
+    // Ultimate attack przy max combo
+    if (gameState.streak === 5) {
+      showUltimateAttack();
+      lightningFlash();
+    }
+
+    // Pokaż heal
     if (result.isCorrect) {
       setTimeout(() => showDamagePopup("player", 5, true), 300);
     }
+
+    // Particle burst przy trafieniu
+    const enemyRect = enemyAvatar.getBoundingClientRect();
+    particleBurst(
+      enemyRect.left + enemyRect.width / 2,
+      enemyRect.top + enemyRect.height / 2,
+      gameState.currentNinja.color,
+      8
+    );
   } else if (result.enemyAttacked) {
+    // EPIC EFFECTS dla błędnej odpowiedzi
     playSound("wrong");
     playSound("hit");
     showAttackEffect("enemy");
     showDamagePopup("player", result.damageTaken);
+
+    // Screen shake przy otrzymaniu obrażeń
+    screenShake();
+
+    // Critical hit flash przy niskim HP
+    if (gameState.playerHealth <= 30) {
+      ninjaAvatar.classList.add("critical-hit");
+      setTimeout(() => ninjaAvatar.classList.remove("critical-hit"), 300);
+    }
   }
 
   // Aktualizuj paski zdrowia
@@ -720,24 +961,51 @@ function handleSubmit(): void {
   if (result.enemyDefeated) {
     playSound("victory");
     battleEffect.classList.add("enemy-defeated");
-    setTimeout(() => battleEffect.classList.remove("enemy-defeated"), 1000);
+
+    // Epic death animation
+    enemyAvatar.classList.add("enemy-death");
+
+    setTimeout(() => {
+      battleEffect.classList.remove("enemy-defeated");
+      enemyAvatar.classList.remove("enemy-death");
+    }, 1000);
 
     // Spawn nowego wroga z animacją
     if (result.newEnemyType) {
       setTimeout(() => {
         const newEnemyType = getEnemyType(gameState.enemyLevel);
-        enemyAvatar.classList.add("enemy-spawn");
-        enemyAvatar.innerHTML = createEnemyAvatarSVG(newEnemyType, 120);
-        updateEnemyNameDisplay(newEnemyType);
-        updateHealthBars();
 
-        // Pokaż nazwę nowego wroga
-        ninjaMessage.textContent = `Nowy przeciwnik: ${newEnemyType.emoji} ${newEnemyType.name}!`;
+        // Check if it's a boss - epic entrance!
+        if (newEnemyType.isBoss) {
+          showBossEntrance(newEnemyType);
+          enemyAvatar.innerHTML = createEnemyAvatarSVG(newEnemyType, 120);
+          updateEnemyNameDisplay(newEnemyType);
+          updateHealthBars();
+        } else {
+          enemyAvatar.classList.add("enemy-spawn");
+          enemyAvatar.innerHTML = createEnemyAvatarSVG(newEnemyType, 120);
+          updateEnemyNameDisplay(newEnemyType);
+          updateHealthBars();
 
-        setTimeout(() => {
-          enemyAvatar.classList.remove("enemy-spawn");
-        }, 600);
+          // Pokaż nazwę nowego wroga
+          ninjaMessage.textContent = `Nowy przeciwnik: ${newEnemyType.emoji} ${newEnemyType.name}!`;
+
+          setTimeout(() => {
+            enemyAvatar.classList.remove("enemy-spawn");
+          }, 600);
+        }
       }, 800);
+    } else {
+      // Pokonano ostatniego bossa - ZWYCIĘSTWO!
+      showLevelUpEffect();
+      lightningFlash();
+      setTimeout(() => {
+        showStoryOverlay(
+          "🏆 ZWYCIĘSTWO! 🏆",
+          "Pokonałeś wszystkich wrogów Ninjago!\n\nJesteś prawdziwym mistrzem Spinjitzu!\n\n⚡ Twoja mądrość matematyczna uratowała krainę! ⚡",
+          true
+        );
+      }, 500);
     }
   }
 
@@ -814,6 +1082,15 @@ attackBtn.addEventListener("click", () => {
  * Obsługa klawiatury fizycznej (dla desktopa)
  */
 document.addEventListener("keydown", (e) => {
+  // Easter egg - szybki test (~ lub `)
+  if (e.key === "`" || e.key === "~") {
+    if (gameState.isGameActive && !gameState.isGameOver) {
+      e.preventDefault();
+      simulateCorrectAnswer();
+    }
+    return;
+  }
+
   if (!gameState.isGameActive || gameState.isGameOver) return;
 
   // Tylko na ekranie gry

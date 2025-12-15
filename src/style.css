@@ -1231,3 +1231,322 @@ h2 {
     width: 100%;
   }
 }
+
+/* ============================================================================
+   EPIC ANIMATIONS & EFFECTS
+   ============================================================================ */
+
+/* Screen shake effect */
+.screen-shake {
+  animation: screenShake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes screenShake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-10px) rotate(-1deg); }
+  20% { transform: translateX(10px) rotate(1deg); }
+  30% { transform: translateX(-10px) rotate(-1deg); }
+  40% { transform: translateX(10px) rotate(1deg); }
+  50% { transform: translateX(-5px) rotate(-0.5deg); }
+  60% { transform: translateX(5px) rotate(0.5deg); }
+  70% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+  90% { transform: translateX(-1px); }
+}
+
+/* Critical hit flash */
+.critical-hit {
+  animation: criticalHit 0.3s ease-out;
+}
+
+@keyframes criticalHit {
+  0% { filter: brightness(1); }
+  25% { filter: brightness(3) saturate(2); }
+  50% { filter: brightness(0.5) hue-rotate(180deg); }
+  100% { filter: brightness(1); }
+}
+
+/* Boss entrance - dramatic reveal */
+.boss-entrance {
+  animation: bossEntrance 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes bossEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(3) rotate(720deg);
+    filter: blur(20px) brightness(3);
+  }
+  40% {
+    opacity: 0.8;
+    transform: scale(0.8) rotate(0deg);
+    filter: blur(5px) brightness(1.5);
+  }
+  60% {
+    transform: scale(1.3) rotate(-10deg);
+    filter: blur(0) brightness(1);
+  }
+  80% {
+    transform: scale(0.95) rotate(5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+    filter: blur(0) brightness(1);
+  }
+}
+
+/* Particle burst effect */
+.particle-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: particleBurst 1s ease-out forwards;
+}
+
+@keyframes particleBurst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) scale(0);
+  }
+}
+
+/* Lightning effect */
+.lightning-effect {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1000;
+  animation: lightningFlash 0.15s ease-out;
+}
+
+@keyframes lightningFlash {
+  0% { background: rgba(255, 255, 255, 0.9); }
+  100% { background: transparent; }
+}
+
+/* Story overlay */
+.story-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: var(--space-xl);
+  animation: storyFadeIn 0.5s ease-out;
+}
+
+@keyframes storyFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.story-overlay.fade-out {
+  animation: storyFadeOut 0.5s ease-in forwards;
+}
+
+@keyframes storyFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.story-text {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  color: #fff;
+  text-align: center;
+  max-width: 600px;
+  line-height: 1.8;
+  animation: storyTextAppear 1s ease-out;
+}
+
+@keyframes storyTextAppear {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.story-emoji {
+  font-size: 4rem;
+  margin-bottom: var(--space-lg);
+  animation: storyEmojiPulse 1s ease-in-out infinite;
+}
+
+@keyframes storyEmojiPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.story-skip {
+  margin-top: var(--space-xl);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Combo counter effect */
+.combo-display {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-size: 5rem;
+  font-weight: bold;
+  color: var(--accent-gold);
+  text-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 107, 0, 0.6);
+  z-index: 500;
+  pointer-events: none;
+  animation: comboAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes comboAppear {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8) translateY(-50px);
+  }
+}
+
+/* Ultimate attack effect */
+.ultimate-attack {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1500;
+  background: radial-gradient(circle at center, transparent 0%, transparent 30%, var(--current-ninja-color) 100%);
+  animation: ultimateAttack 0.8s ease-out forwards;
+}
+
+@keyframes ultimateAttack {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  30% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+/* Power up glow on player */
+.power-up {
+  animation: powerUpGlow 0.5s ease-out;
+}
+
+@keyframes powerUpGlow {
+  0% { filter: drop-shadow(0 0 5px var(--current-ninja-color)); }
+  50% { filter: drop-shadow(0 0 30px var(--current-ninja-color)) drop-shadow(0 0 60px var(--accent-gold)); }
+  100% { filter: drop-shadow(0 0 5px var(--current-ninja-color)); }
+}
+
+/* Enemy death explosion */
+.enemy-death {
+  animation: enemyDeath 0.6s ease-out forwards;
+}
+
+@keyframes enemyDeath {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: scale(1.3);
+    filter: brightness(2) saturate(2);
+  }
+  60% {
+    opacity: 0.5;
+    transform: scale(0.8);
+    filter: brightness(3) hue-rotate(90deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(180deg);
+    filter: brightness(5) blur(10px);
+  }
+}
+
+/* Level up celebration */
+.level-up-effect {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 8vw, 4rem);
+  color: var(--accent-gold);
+  text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 40px rgba(255, 107, 0, 0.8);
+  z-index: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: levelUp 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes levelUp {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0) rotate(-30deg);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.3) rotate(10deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1.1) rotate(-5deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5) translateY(-100px);
+  }
+}
+
