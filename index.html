@@ -15,6 +15,9 @@
     <div id="app">
       <!-- EKRAN STARTOWY -->
       <div id="start-screen" class="screen">
+        <div class="screen-header">
+          <button id="mute-btn" class="btn btn-icon" aria-label="Wycisz dźwięki">🔊</button>
+        </div>
         <h1 class="title">🥷 Ninjago Math 🥷</h1>
         <p class="subtitle">Naucz się liczyć z ninja!</p>
         
@@ -55,8 +58,42 @@
           <button id="back-btn" class="btn btn-small">⬅ Menu</button>
         </header>
         
-        <!-- Avatar ninja -->
-        <div id="ninja-avatar" class="ninja-avatar"></div>
+        <!-- Arena walki -->
+        <div class="battle-arena">
+          <!-- Gracz (ninja) -->
+          <div class="fighter fighter-player">
+            <div class="health-bar-container">
+              <div class="health-bar health-bar-player">
+                <div id="player-health-fill" class="health-fill"></div>
+              </div>
+              <span id="player-health-text" class="health-text">100/100</span>
+            </div>
+            <div id="ninja-avatar" class="ninja-avatar"></div>
+            <div id="player-damage-popup" class="damage-popup"></div>
+          </div>
+          
+          <!-- VS / Efekty walki -->
+          <div class="battle-center">
+            <div id="battle-effect" class="battle-effect"></div>
+          </div>
+          
+          <!-- Wróg -->
+          <div class="fighter fighter-enemy">
+            <div class="health-bar-container">
+              <div class="health-bar health-bar-enemy">
+                <div id="enemy-health-fill" class="health-fill"></div>
+              </div>
+              <span id="enemy-health-text" class="health-text">100/100</span>
+            </div>
+            <div id="enemy-avatar" class="enemy-avatar"></div>
+            <div id="enemy-damage-popup" class="damage-popup"></div>
+          </div>
+        </div>
+        
+        <!-- Timer nieaktywności -->
+        <div id="idle-timer" class="idle-timer">
+          <div id="idle-timer-fill" class="idle-timer-fill"></div>
+        </div>
         
         <!-- Zadanie matematyczne -->
         <div class="problem-container">
@@ -81,6 +118,18 @@
         
         <!-- Wiadomość ninja -->
         <div id="ninja-message" class="ninja-message"></div>
+      </div>
+      
+      <!-- EKRAN GAME OVER -->
+      <div id="gameover-screen" class="screen hidden">
+        <h1 class="title gameover-title">💀 Koniec Gry 💀</h1>
+        <div class="gameover-stats">
+          <p>Zdobyte punkty: <strong id="final-score">0</strong></p>
+          <p>Poprawne odpowiedzi: <strong id="final-correct">0</strong></p>
+          <p>Pokonani wrogowie: <strong id="final-enemies">0</strong></p>
+        </div>
+        <button id="restart-btn" class="btn btn-start">Zagraj ponownie!</button>
+        <button id="menu-btn" class="btn btn-small">⬅ Menu główne</button>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

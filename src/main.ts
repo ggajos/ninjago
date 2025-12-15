@@ -9,19 +9,26 @@ import type { GameState } from "./game";
 import {
   NINJAS,
   DIFFICULTIES,
+  COMBAT_CONFIG,
   createInitialState,
   startGame,
   processAnswer,
+  processIdleAttack,
+  shouldIdleAttack,
   selectNinja,
   selectDifficulty,
   formatProblem,
 } from "./game";
+import { playSound, getMuted, toggleMuted } from "./sounds";
 
 // ============================================================================
 // STAN APLIKACJI
 // ============================================================================
 
 let gameState: GameState = createInitialState();
+let idleCheckInterval: number | null = null;
+let idleTimerInterval: number | null = null;
+let enemiesDefeated = 0;
 
 // ============================================================================
 // ELEMENTY DOM
@@ -36,6 +43,7 @@ const $ = <T extends HTMLElement>(selector: string): T => {
 // Ekrany
 const startScreen = $("#start-screen");
 const gameScreen = $("#game-screen");
+const gameoverScreen = $("#gameover-screen");
 
 // Start screen
 const ninjaGrid = $("#ninja-grid");
@@ -48,11 +56,33 @@ const currentScore = $("#current-score");
 const currentStreak = $("#current-streak");
 const backBtn = $("#back-btn");
 const ninjaAvatar = $("#ninja-avatar");
+const enemyAvatar = $("#enemy-avatar");
 const problemDisplay = $("#problem-display");
 const answerInput = $<HTMLInputElement>("#answer-input");
 const submitBtn = $("#submit-btn");
 const feedback = $("#feedback");
 const ninjaMessage = $("#ninja-message");
+
+// Health bars
+const playerHealthFill = $("#player-health-fill");
+const playerHealthText = $("#player-health-text");
+const enemyHealthFill = $("#enemy-health-fill");
+const enemyHealthText = $("#enemy-health-text");
+
+// Battle effects
+const battleEffect = $("#battle-effect");
+const playerDamagePopup = $("#player-damage-popup");
+const enemyDamagePopup = $("#enemy-damage-popup");
+
+// Idle timer
+const idleTimerFill = $("#idle-timer-fill");
+
+// Game over screen
+const finalScore = $("#final-score");
+const finalCorrect = $("#final-correct");
+const finalEnemies = $("#final-enemies");
+const restartBtn = $("#restart-btn");
+const menuBtn = $("#menu-btn");
 
 // ============================================================================
 // RENDEROWANIE
@@ -66,7 +96,7 @@ function createNinjaAvatarSVG(
   size: number = 120
 ): string {
   return `
-    <svg viewBox="0 0 100 100" width="${size}" height="${size}">
+    <svg viewBox="0 0 100 100" width="${size}" height="${size}" class="ninja-svg">
       <!-- Tło z kolorem żywiołu -->
       <circle cx="50" cy="50" r="48" fill="${ninja.color}" opacity="0.2"/>
       
@@ -96,6 +126,52 @@ function createNinjaAvatarSVG(
       
       <!-- Symbol żywiołu -->
       <text x="50" y="85" text-anchor="middle" font-size="20">${ninja.emoji}</text>
+    </svg>
+  `;
+}
+
+/**
+ * Generuje SVG wroga (szkielet wojownik)
+ */
+function createEnemyAvatarSVG(size: number = 120): string {
+  return `
+    <svg viewBox="0 0 100 100" width="${size}" height="${size}" class="enemy-svg">
+      <!-- Tło -->
+      <circle cx="50" cy="50" r="48" fill="#4a0080" opacity="0.2"/>
+      
+      <!-- Ciało szkieleta -->
+      <ellipse cx="50" cy="72" rx="22" ry="18" fill="#2d2d2d"/>
+      
+      <!-- Kości żeber -->
+      <rect x="38" y="60" width="24" height="3" fill="#d4d4d4" rx="1"/>
+      <rect x="40" y="65" width="20" height="3" fill="#d4d4d4" rx="1"/>
+      <rect x="42" y="70" width="16" height="3" fill="#d4d4d4" rx="1"/>
+      
+      <!-- Czaszka -->
+      <circle cx="50" cy="32" r="22" fill="#e8e8e8"/>
+      
+      <!-- Oczodoły -->
+      <ellipse cx="40" cy="30" rx="7" ry="8" fill="#1a1a1a"/>
+      <ellipse cx="60" cy="30" rx="7" ry="8" fill="#1a1a1a"/>
+      
+      <!-- Czerwone oczy -->
+      <circle cx="40" cy="30" r="3" fill="#ff0000"/>
+      <circle cx="60" cy="30" r="3" fill="#ff0000"/>
+      
+      <!-- Nos -->
+      <path d="M 50 35 L 47 42 L 53 42 Z" fill="#1a1a1a"/>
+      
+      <!-- Zęby -->
+      <rect x="42" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
+      <rect x="48" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
+      <rect x="54" y="44" width="4" height="6" fill="#e8e8e8" rx="1"/>
+      
+      <!-- Miecz -->
+      <rect x="75" y="20" width="4" height="40" fill="#808080"/>
+      <rect x="72" y="55" width="10" height="4" fill="#8B4513"/>
+      
+      <!-- Emoji -->
+      <text x="50" y="92" text-anchor="middle" font-size="16">💀</text>
     </svg>
   `;
 }
@@ -165,20 +241,93 @@ function renderGameScreen(): void {
   currentScore.textContent = String(gameState.score);
   currentStreak.textContent = String(gameState.streak);
 
-  ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 150);
+  ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
+  enemyAvatar.innerHTML = createEnemyAvatarSVG(120);
 
   if (gameState.currentProblem) {
     problemDisplay.textContent = formatProblem(gameState.currentProblem);
   }
+
+  // Update health bars
+  updateHealthBars();
 
   // Wyczyść poprzedni feedback
   feedback.textContent = "";
   feedback.className = "feedback";
   ninjaMessage.textContent = "";
 
+  // Clear damage popups
+  playerDamagePopup.textContent = "";
+  enemyDamagePopup.textContent = "";
+  battleEffect.className = "battle-effect";
+
   // Focus na input
   answerInput.value = "";
   answerInput.focus();
+
+  // Reset enemies counter
+  enemiesDefeated = 0;
+
+  // Start idle timer
+  startIdleTimer();
+}
+
+/**
+ * Aktualizuje paski zdrowia
+ */
+function updateHealthBars(): void {
+  const playerPercent =
+    (gameState.playerHealth / gameState.maxPlayerHealth) * 100;
+  const enemyPercent = (gameState.enemyHealth / gameState.maxEnemyHealth) * 100;
+
+  playerHealthFill.style.width = `${playerPercent}%`;
+  enemyHealthFill.style.width = `${enemyPercent}%`;
+
+  playerHealthText.textContent = `${gameState.playerHealth}/${gameState.maxPlayerHealth}`;
+  enemyHealthText.textContent = `${gameState.enemyHealth}/${gameState.maxEnemyHealth}`;
+
+  // Zmiana koloru przy niskim zdrowiu
+  playerHealthFill.classList.toggle("low-health", playerPercent <= 30);
+  enemyHealthFill.classList.toggle("low-health", enemyPercent <= 30);
+}
+
+/**
+ * Pokazuje popup z obrażeniami
+ */
+function showDamagePopup(
+  target: "player" | "enemy",
+  damage: number,
+  heal: boolean = false
+): void {
+  const popup = target === "player" ? playerDamagePopup : enemyDamagePopup;
+  popup.textContent = heal ? `+${damage}` : `-${damage}`;
+  popup.className = `damage-popup ${heal ? "heal" : "damage"} show`;
+
+  setTimeout(() => {
+    popup.classList.remove("show");
+  }, 1000);
+}
+
+/**
+ * Pokazuje efekt ataku
+ */
+function showAttackEffect(attacker: "player" | "enemy"): void {
+  battleEffect.className = `battle-effect ${attacker}-attack`;
+
+  // Animacja avatara
+  if (attacker === "player") {
+    ninjaAvatar.classList.add("attacking");
+    enemyAvatar.classList.add("hit");
+  } else {
+    enemyAvatar.classList.add("attacking");
+    ninjaAvatar.classList.add("hit");
+  }
+
+  setTimeout(() => {
+    battleEffect.className = "battle-effect";
+    ninjaAvatar.classList.remove("attacking", "hit");
+    enemyAvatar.classList.remove("attacking", "hit");
+  }, 500);
 }
 
 /**
@@ -198,12 +347,86 @@ function showFeedback(
   ninjaMessage.className = `ninja-message ${
     isCorrect ? "encouragement" : "comfort"
   }`;
+}
 
-  // Animacja
-  ninjaAvatar.classList.add(isCorrect ? "celebrate" : "shake");
-  setTimeout(() => {
-    ninjaAvatar.classList.remove("celebrate", "shake");
-  }, 500);
+/**
+ * Pokazuje ekran game over
+ */
+function showGameOver(): void {
+  stopIdleTimer();
+
+  finalScore.textContent = String(gameState.score);
+  finalCorrect.textContent = String(gameState.correctAnswers);
+  finalEnemies.textContent = String(enemiesDefeated);
+
+  gameScreen.classList.add("hidden");
+  gameoverScreen.classList.remove("hidden");
+}
+
+// ============================================================================
+// IDLE TIMER - Atak wroga przy braku aktywności
+// ============================================================================
+
+function startIdleTimer(): void {
+  stopIdleTimer();
+
+  // Check every 100ms for idle attack
+  idleCheckInterval = window.setInterval(() => {
+    if (shouldIdleAttack(gameState)) {
+      handleIdleAttack();
+    }
+  }, 100);
+
+  // Update timer bar every 50ms
+  idleTimerInterval = window.setInterval(() => {
+    updateIdleTimerBar();
+  }, 50);
+}
+
+function stopIdleTimer(): void {
+  if (idleCheckInterval) {
+    clearInterval(idleCheckInterval);
+    idleCheckInterval = null;
+  }
+  if (idleTimerInterval) {
+    clearInterval(idleTimerInterval);
+    idleTimerInterval = null;
+  }
+}
+
+function updateIdleTimerBar(): void {
+  if (!gameState.isGameActive || gameState.isGameOver) {
+    idleTimerFill.style.width = "100%";
+    return;
+  }
+
+  const elapsed = Date.now() - gameState.lastAnswerTime;
+  const percent = Math.max(
+    0,
+    100 - (elapsed / COMBAT_CONFIG.IDLE_TIMEOUT_MS) * 100
+  );
+  idleTimerFill.style.width = `${percent}%`;
+
+  // Czerwieni się gdy mało czasu
+  idleTimerFill.classList.toggle("danger", percent <= 30);
+}
+
+function handleIdleAttack(): void {
+  const result = processIdleAttack(gameState);
+  gameState = result.state;
+
+  if (result.attacked) {
+    showAttackEffect("enemy");
+    showDamagePopup("player", result.damage);
+    updateHealthBars();
+
+    ninjaMessage.textContent = "Zbyt wolno! Wróg atakuje!";
+    ninjaMessage.className = "ninja-message comfort";
+
+    if (result.playerDefeated) {
+      showGameOver();
+    }
+  }
 }
 
 // ============================================================================
@@ -212,11 +435,14 @@ function showFeedback(
 
 function showScreen(screen: "start" | "game"): void {
   if (screen === "start") {
+    stopIdleTimer();
     startScreen.classList.remove("hidden");
     gameScreen.classList.add("hidden");
+    gameoverScreen.classList.add("hidden");
     renderStartScreen();
   } else {
     startScreen.classList.add("hidden");
+    gameoverScreen.classList.add("hidden");
     gameScreen.classList.remove("hidden");
     renderGameScreen();
   }
@@ -272,6 +498,7 @@ startBtn.addEventListener("click", () => {
  * Powrót do menu
  */
 backBtn.addEventListener("click", () => {
+  stopIdleTimer();
   gameState.isGameActive = false;
   showScreen("start");
 });
@@ -280,6 +507,8 @@ backBtn.addEventListener("click", () => {
  * Sprawdzenie odpowiedzi
  */
 function handleSubmit(): void {
+  if (gameState.isGameOver) return;
+
   const userAnswer = parseInt(answerInput.value, 10);
 
   if (isNaN(userAnswer)) {
@@ -292,15 +521,44 @@ function handleSubmit(): void {
   const result = processAnswer(gameState, userAnswer);
   gameState = result.state;
 
+  // Pokaż animacje walki
+  if (result.playerAttacked) {
+    showAttackEffect("player");
+    showDamagePopup("enemy", result.damageDealt);
+    // Pokaż heal jeśli gracz się uleczył
+    if (result.isCorrect) {
+      setTimeout(() => showDamagePopup("player", 5, true), 300);
+    }
+  } else if (result.enemyAttacked) {
+    showAttackEffect("enemy");
+    showDamagePopup("player", result.damageTaken);
+  }
+
+  // Aktualizuj paski zdrowia
+  updateHealthBars();
+
   showFeedback(result.isCorrect, result.message, correctAnswer);
 
   // Aktualizuj wynik
   currentScore.textContent = String(gameState.score);
   currentStreak.textContent = String(gameState.streak);
 
+  // Sprawdź czy wróg pokonany
+  if (result.enemyDefeated) {
+    enemiesDefeated++;
+    battleEffect.classList.add("enemy-defeated");
+    setTimeout(() => battleEffect.classList.remove("enemy-defeated"), 1000);
+  }
+
+  // Sprawdź czy gracz przegrał
+  if (result.playerDefeated) {
+    showGameOver();
+    return;
+  }
+
   // Nowe zadanie po krótkim opóźnieniu
   setTimeout(() => {
-    if (gameState.currentProblem) {
+    if (gameState.currentProblem && !gameState.isGameOver) {
       problemDisplay.textContent = formatProblem(gameState.currentProblem);
     }
     answerInput.value = "";
@@ -326,6 +584,46 @@ answerInput.addEventListener("focus", () => {
   setTimeout(() => {
     answerInput.scrollIntoView({ behavior: "smooth", block: "center" });
   }, 300);
+});
+
+/**
+ * Restart gry po przegranej
+ */
+restartBtn.addEventListener("click", () => {
+  enemiesDefeated = 0;
+  const currentNinja = gameState.currentNinja;
+  const difficulty = gameState.difficulty;
+
+  // Resetuj stan i rozpocznij grę
+  gameState = createInitialState();
+  gameState = selectNinja(gameState, currentNinja.id);
+  gameState = selectDifficulty(gameState, difficulty.id);
+  gameState = startGame(gameState);
+
+  // Aktualizuj UI
+  problemDisplay.textContent = formatProblem(gameState.currentProblem!);
+  currentScore.textContent = "0";
+  currentStreak.textContent = "0";
+  ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
+  document.documentElement.style.setProperty(
+    "--current-ninja-color",
+    gameState.currentNinja.color
+  );
+  updateHealthBars();
+  enemyAvatar.innerHTML = createEnemyAvatarSVG(120);
+
+  // Pokaż ekran gry
+  showScreen("game");
+  answerInput.value = "";
+  answerInput.focus();
+});
+
+/**
+ * Powrót do menu głównego po przegranej
+ */
+menuBtn.addEventListener("click", () => {
+  enemiesDefeated = 0;
+  showScreen("start");
 });
 
 // ============================================================================

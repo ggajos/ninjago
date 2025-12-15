@@ -53,6 +53,13 @@ export interface GameState {
   totalProblems: number;
   correctAnswers: number;
   isGameActive: boolean;
+  // Combat system
+  playerHealth: number;
+  maxPlayerHealth: number;
+  enemyHealth: number;
+  maxEnemyHealth: number;
+  isGameOver: boolean;
+  lastAnswerTime: number; // timestamp ostatniej odpowiedzi (dla idle attack)
 }
 
 /** Dane zapisywane w localStorage */
@@ -229,6 +236,21 @@ export const DIFFICULTIES: DifficultyConfig[] = [
 const STORAGE_KEY = "ninjago-math-game-save";
 
 // ============================================================================
+// STAŁE - SYSTEM WALKI
+// ============================================================================
+
+export const COMBAT_CONFIG = {
+  PLAYER_MAX_HEALTH: 100,
+  ENEMY_MAX_HEALTH: 100,
+  PLAYER_ATTACK_DAMAGE: 15, // obrażenia zadawane wrogowi przy poprawnej odpowiedzi
+  ENEMY_ATTACK_DAMAGE: 20, // obrażenia od wroga przy złej odpowiedzi
+  IDLE_ATTACK_DAMAGE: 10, // obrażenia od wroga gdy gracz jest nieaktywny
+  IDLE_TIMEOUT_MS: 8000, // czas nieaktywności po którym wróg atakuje (8 sekund)
+  HEALTH_REGEN_ON_HIT: 5, // regeneracja zdrowia przy poprawnej odpowiedzi
+  STREAK_BONUS_DAMAGE: 3, // bonus do obrażeń za każdą serię (max 5)
+};
+
+// ============================================================================
 // FUNKCJE - GENEROWANIE ZADAŃ
 // ============================================================================
 
@@ -384,6 +406,13 @@ export function createInitialState(): GameState {
     totalProblems: 0,
     correctAnswers: 0,
     isGameActive: false,
+    // Combat system
+    playerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
+    maxPlayerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
+    enemyHealth: COMBAT_CONFIG.ENEMY_MAX_HEALTH,
+    maxEnemyHealth: COMBAT_CONFIG.ENEMY_MAX_HEALTH,
+    isGameOver: false,
+    lastAnswerTime: Date.now(),
   };
 }
 
@@ -399,6 +428,13 @@ export function startGame(state: GameState): GameState {
     totalProblems: 0,
     correctAnswers: 0,
     isGameActive: true,
+    // Reset combat
+    playerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
+    maxPlayerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
+    enemyHealth: COMBAT_CONFIG.ENEMY_MAX_HEALTH,
+    maxEnemyHealth: COMBAT_CONFIG.ENEMY_MAX_HEALTH,
+    isGameOver: false,
+    lastAnswerTime: Date.now(),
   };
 }
 
@@ -412,9 +448,25 @@ export function processAnswer(
   state: GameState;
   isCorrect: boolean;
   message: string;
+  playerAttacked: boolean;
+  enemyAttacked: boolean;
+  enemyDefeated: boolean;
+  playerDefeated: boolean;
+  damageDealt: number;
+  damageTaken: number;
 } {
-  if (!state.currentProblem) {
-    return { state, isCorrect: false, message: "" };
+  if (!state.currentProblem || state.isGameOver) {
+    return {
+      state,
+      isCorrect: false,
+      message: "",
+      playerAttacked: false,
+      enemyAttacked: false,
+      enemyDefeated: false,
+      playerDefeated: false,
+      damageDealt: 0,
+      damageTaken: 0,
+    };
   }
 
   const isCorrect = checkAnswer(state.currentProblem, userAnswer);
@@ -423,7 +475,13 @@ export function processAnswer(
   let newScore = state.score;
   let newStreak = state.streak;
   let newHighScore = state.highScore;
+  let newPlayerHealth = state.playerHealth;
+  let newEnemyHealth = state.enemyHealth;
   let message: string;
+  let damageDealt = 0;
+  let damageTaken = 0;
+  let enemyDefeated = false;
+  let playerDefeated = false;
 
   if (isCorrect) {
     // Bonus za serię: każda poprawna odpowiedź w serii daje +1 do mnożnika
@@ -436,9 +494,42 @@ export function processAnswer(
     if (newScore > newHighScore) {
       newHighScore = newScore;
     }
+
+    // ATAK GRACZA - zadajemy obrażenia wrogowi
+    damageDealt =
+      COMBAT_CONFIG.PLAYER_ATTACK_DAMAGE +
+      streakBonus * COMBAT_CONFIG.STREAK_BONUS_DAMAGE;
+    newEnemyHealth = Math.max(0, newEnemyHealth - damageDealt);
+
+    // Regeneracja zdrowia gracza przy trafieniu
+    newPlayerHealth = Math.min(
+      state.maxPlayerHealth,
+      newPlayerHealth + COMBAT_CONFIG.HEALTH_REGEN_ON_HIT
+    );
+
+    // Sprawdź czy wróg pokonany
+    if (newEnemyHealth <= 0) {
+      enemyDefeated = true;
+      // Respawn wroga z pełnym zdrowiem
+      newEnemyHealth = state.maxEnemyHealth;
+      // Bonus punktów za pokonanie wroga
+      newScore += 50;
+      if (newScore > newHighScore) {
+        newHighScore = newScore;
+      }
+    }
   } else {
+    // ZŁA ODPOWIEDŹ - wróg atakuje gracza
     newStreak = 0;
     message = randomChoice(ninja.comforts);
+
+    damageTaken = COMBAT_CONFIG.ENEMY_ATTACK_DAMAGE;
+    newPlayerHealth = Math.max(0, newPlayerHealth - damageTaken);
+
+    // Sprawdź czy gracz pokonany
+    if (newPlayerHealth <= 0) {
+      playerDefeated = true;
+    }
   }
 
   const newState: GameState = {
@@ -446,9 +537,13 @@ export function processAnswer(
     score: newScore,
     highScore: newHighScore,
     streak: newStreak,
-    currentProblem: generateProblem(state.difficulty),
+    currentProblem: playerDefeated ? null : generateProblem(state.difficulty),
     totalProblems: state.totalProblems + 1,
     correctAnswers: state.correctAnswers + (isCorrect ? 1 : 0),
+    playerHealth: newPlayerHealth,
+    enemyHealth: newEnemyHealth,
+    isGameOver: playerDefeated,
+    lastAnswerTime: Date.now(),
   };
 
   // Zapisz postęp
@@ -458,7 +553,58 @@ export function processAnswer(
     selectedDifficultyId: state.difficulty.id,
   });
 
-  return { state: newState, isCorrect, message };
+  return {
+    state: newState,
+    isCorrect,
+    message,
+    playerAttacked: isCorrect,
+    enemyAttacked: !isCorrect,
+    enemyDefeated,
+    playerDefeated,
+    damageDealt,
+    damageTaken,
+  };
+}
+
+/**
+ * Przetwarza atak wroga gdy gracz jest nieaktywny.
+ */
+export function processIdleAttack(state: GameState): {
+  state: GameState;
+  attacked: boolean;
+  damage: number;
+  playerDefeated: boolean;
+} {
+  if (!state.isGameActive || state.isGameOver) {
+    return { state, attacked: false, damage: 0, playerDefeated: false };
+  }
+
+  const damage = COMBAT_CONFIG.IDLE_ATTACK_DAMAGE;
+  const newPlayerHealth = Math.max(0, state.playerHealth - damage);
+  const playerDefeated = newPlayerHealth <= 0;
+
+  const newState: GameState = {
+    ...state,
+    playerHealth: newPlayerHealth,
+    isGameOver: playerDefeated,
+    lastAnswerTime: Date.now(), // Reset timer
+  };
+
+  return {
+    state: newState,
+    attacked: true,
+    damage,
+    playerDefeated,
+  };
+}
+
+/**
+ * Sprawdza czy minął czas na idle attack.
+ */
+export function shouldIdleAttack(state: GameState): boolean {
+  if (!state.isGameActive || state.isGameOver) return false;
+  const elapsed = Date.now() - state.lastAnswerTime;
+  return elapsed >= COMBAT_CONFIG.IDLE_TIMEOUT_MS;
 }
 
 /**
