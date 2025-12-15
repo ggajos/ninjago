@@ -40,6 +40,83 @@ const STORY_INTRO = {
   text: "Ninjago jest w niebezpieczeństwie! Armia szkieletów zaatakowała miasto. Tylko TY możesz ich powstrzymać... używając mocy MATEMATYKI! 🧮⚡",
 };
 
+// ============================================================================
+// EPIC BACKGROUNDS PER ENEMY
+// ============================================================================
+
+interface BackgroundConfig {
+  gradient: string;
+  particles: string;
+  ambientColor: string;
+  floatingElements: string[];
+}
+
+const ENEMY_BACKGROUNDS: Record<string, BackgroundConfig> = {
+  skeleton: {
+    gradient:
+      "linear-gradient(180deg, #1a0a2e 0%, #2d1b4e 30%, #1a0a2e 70%, #0d0518 100%)",
+    particles: "💀",
+    ambientColor: "#4a0080",
+    floatingElements: ["🦴", "💀", "⚔️", "🕯️"],
+  },
+  "skeleton-warrior": {
+    gradient:
+      "linear-gradient(180deg, #1f0a3a 0%, #3d1b5e 30%, #2a1045 70%, #0d0518 100%)",
+    particles: "⚔️",
+    ambientColor: "#5a1090",
+    floatingElements: ["⚔️", "🗡️", "💀", "🛡️"],
+  },
+  "stone-warrior": {
+    gradient:
+      "linear-gradient(180deg, #2a2218 0%, #4a3c2e 30%, #3b3025 70%, #1a1510 100%)",
+    particles: "🪨",
+    ambientColor: "#6b5b45",
+    floatingElements: ["🗿", "🪨", "⛰️", "🏛️"],
+  },
+  serpentine: {
+    gradient:
+      "linear-gradient(180deg, #0a2a1a 0%, #1b4e2e 30%, #0d3318 70%, #051a0d 100%)",
+    particles: "🐍",
+    ambientColor: "#228b22",
+    floatingElements: ["🐍", "🌿", "🍃", "☠️"],
+  },
+  nindroid: {
+    gradient:
+      "linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 30%, #0d0d2a 70%, #050510 100%)",
+    particles: "⚡",
+    ambientColor: "#4040ff",
+    floatingElements: ["🤖", "⚡", "💠", "🔩"],
+  },
+  ghost: {
+    gradient:
+      "linear-gradient(180deg, #0a2a2a 0%, #1b4e4e 30%, #0d3333 70%, #051a1a 100%)",
+    particles: "👻",
+    ambientColor: "#00ff88",
+    floatingElements: ["👻", "🌫️", "💀", "🕯️"],
+  },
+  oni: {
+    gradient:
+      "linear-gradient(180deg, #2a0a0a 0%, #4e1b1b 30%, #330d0d 70%, #1a0505 100%)",
+    particles: "🔥",
+    ambientColor: "#ff4444",
+    floatingElements: ["👹", "🔥", "⛓️", "💀"],
+  },
+  "dragon-hunter": {
+    gradient:
+      "linear-gradient(180deg, #1a1510 0%, #3e2b1b 30%, #2a1d12 70%, #100a05 100%)",
+    particles: "🏹",
+    ambientColor: "#8b4513",
+    floatingElements: ["🏹", "🐉", "⚔️", "🎯"],
+  },
+  overlord: {
+    gradient:
+      "linear-gradient(180deg, #0d0015 0%, #1a0033 30%, #0d001a 70%, #050008 100%)",
+    particles: "😈",
+    ambientColor: "#9900ff",
+    floatingElements: ["😈", "⚡", "💀", "🌑"],
+  },
+};
+
 const BOSS_STORIES: Record<string, { emoji: string; text: string }> = {
   "stone-warrior": {
     emoji: "🗿",
@@ -191,6 +268,78 @@ function lightningFlash(): void {
 }
 
 /**
+ * Zmienia tło gry na podstawie typu wroga
+ */
+let currentBackgroundElements: HTMLElement[] = [];
+
+function changeBackground(enemyId: string): void {
+  const config = ENEMY_BACKGROUNDS[enemyId] || ENEMY_BACKGROUNDS["skeleton"];
+
+  // Usuń stare elementy tła
+  currentBackgroundElements.forEach((el) => el.remove());
+  currentBackgroundElements = [];
+
+  // Ustaw gradient na body
+  document.body.style.background = config.gradient;
+  document.body.style.transition = "background 1.5s ease-in-out";
+
+  // Ustaw ambient glow
+  document.documentElement.style.setProperty(
+    "--enemy-ambient-color",
+    config.ambientColor
+  );
+
+  // Dodaj pływające elementy
+  const container = document.createElement("div");
+  container.className = "floating-elements-container";
+
+  for (let i = 0; i < 15; i++) {
+    const element = document.createElement("div");
+    element.className = "floating-element";
+    element.textContent =
+      config.floatingElements[
+        Math.floor(Math.random() * config.floatingElements.length)
+      ];
+    element.style.left = `${Math.random() * 100}%`;
+    element.style.animationDelay = `${Math.random() * 10}s`;
+    element.style.animationDuration = `${15 + Math.random() * 20}s`;
+    element.style.fontSize = `${1.5 + Math.random() * 2}rem`;
+    element.style.opacity = `${0.15 + Math.random() * 0.25}`;
+    container.appendChild(element);
+  }
+
+  document.body.appendChild(container);
+  currentBackgroundElements.push(container);
+
+  // Dodaj ambient particles
+  const particleContainer = document.createElement("div");
+  particleContainer.className = "ambient-particles";
+
+  for (let i = 0; i < 30; i++) {
+    const particle = document.createElement("div");
+    particle.className = "ambient-particle";
+    particle.textContent = config.particles;
+    particle.style.left = `${Math.random() * 100}%`;
+    particle.style.top = `${Math.random() * 100}%`;
+    particle.style.animationDelay = `${Math.random() * 5}s`;
+    particle.style.animationDuration = `${3 + Math.random() * 4}s`;
+    particleContainer.appendChild(particle);
+  }
+
+  document.body.appendChild(particleContainer);
+  currentBackgroundElements.push(particleContainer);
+
+  // Dodaj efekt vignette
+  let vignette = document.querySelector(".vignette-overlay") as HTMLElement;
+  if (!vignette) {
+    vignette = document.createElement("div");
+    vignette.className = "vignette-overlay";
+    document.body.appendChild(vignette);
+  }
+  vignette.style.boxShadow = `inset 0 0 150px 50px ${config.ambientColor}40`;
+}
+
+/**
  * Eksplozja cząsteczek
  */
 function particleBurst(
@@ -257,7 +406,7 @@ function showUltimateAttack(): void {
 /**
  * Efekt level up przy pokonaniu bossa
  */
-function showLevelUpEffect(bossName: string): void {
+function showLevelUpEffect(bossName: string = "MISTRZ"): void {
   const levelUp = document.createElement("div");
   levelUp.className = "level-up-effect";
   levelUp.innerHTML = `⚔️ ${bossName} POKONANY! ⚔️`;
@@ -593,6 +742,9 @@ function renderGameScreen(): void {
   enemyAvatar.innerHTML = createEnemyAvatarSVG(currentEnemyType, 120);
   updateEnemyNameDisplay(currentEnemyType);
 
+  // Set epic background for current enemy!
+  changeBackground(currentEnemyType.id);
+
   if (gameState.currentProblem) {
     problemDisplay.textContent = formatProblem(gameState.currentProblem);
   }
@@ -805,9 +957,24 @@ function handleIdleAttack(): void {
 // NAWIGACJA
 // ============================================================================
 
+function resetBackground(): void {
+  // Remove epic background elements
+  currentBackgroundElements.forEach((el) => el.remove());
+  currentBackgroundElements = [];
+
+  // Reset to default gradient
+  document.body.style.background =
+    "linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-medium) 50%, var(--bg-light) 100%)";
+
+  // Remove vignette
+  const vignette = document.querySelector(".vignette-overlay");
+  if (vignette) vignette.remove();
+}
+
 function showScreen(screen: "start" | "game"): void {
   if (screen === "start") {
     stopIdleTimer();
+    resetBackground();
     startScreen.classList.remove("hidden");
     gameScreen.classList.add("hidden");
     gameoverScreen.classList.add("hidden");
@@ -865,6 +1032,11 @@ startBtn.addEventListener("click", () => {
   playSound("start");
   gameState = startGame(gameState);
   showScreen("game");
+
+  // Show epic story intro!
+  setTimeout(() => {
+    showStoryOverlay(STORY_INTRO);
+  }, 500);
 });
 
 /**
@@ -975,6 +1147,9 @@ function handleSubmit(): void {
       setTimeout(() => {
         const newEnemyType = getEnemyType(gameState.enemyLevel);
 
+        // Change epic background for new enemy!
+        changeBackground(newEnemyType.id);
+
         // Check if it's a boss - epic entrance!
         if (newEnemyType.isBoss) {
           showBossEntrance(newEnemyType);
@@ -997,14 +1172,13 @@ function handleSubmit(): void {
       }, 800);
     } else {
       // Pokonano ostatniego bossa - ZWYCIĘSTWO!
-      showLevelUpEffect();
+      showLevelUpEffect("OVERLORD");
       lightningFlash();
       setTimeout(() => {
-        showStoryOverlay(
-          "🏆 ZWYCIĘSTWO! 🏆",
-          "Pokonałeś wszystkich wrogów Ninjago!\n\nJesteś prawdziwym mistrzem Spinjitzu!\n\n⚡ Twoja mądrość matematyczna uratowała krainę! ⚡",
-          true
-        );
+        showStoryOverlay({
+          emoji: "🏆",
+          text: "ZWYCIĘSTWO!\n\nPokonałeś wszystkich wrogów Ninjago!\n\nJesteś prawdziwym mistrzem Spinjitzu!\n\n⚡ Twoja mądrość matematyczna uratowała krainę! ⚡",
+        });
       }, 500);
     }
   }

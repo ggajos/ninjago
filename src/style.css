@@ -1550,3 +1550,144 @@ h2 {
   }
 }
 
+/* ============================================================================
+   EPIC DYNAMIC BACKGROUNDS
+   ============================================================================ */
+
+:root {
+  --enemy-ambient-color: #4a0080;
+}
+
+/* Floating background elements */
+.floating-elements-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.floating-element {
+  position: absolute;
+  bottom: -50px;
+  animation: floatUp linear infinite;
+  filter: blur(1px);
+  user-select: none;
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--element-opacity, 0.3);
+  }
+  90% {
+    opacity: var(--element-opacity, 0.3);
+  }
+  100% {
+    transform: translateY(-110vh) rotate(360deg) scale(0.5);
+    opacity: 0;
+  }
+}
+
+/* Ambient particles */
+.ambient-particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.ambient-particle {
+  position: absolute;
+  font-size: 1rem;
+  opacity: 0.2;
+  animation: ambientFloat ease-in-out infinite;
+  filter: blur(0.5px);
+  user-select: none;
+}
+
+@keyframes ambientFloat {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.1;
+  }
+  25% {
+    transform: translate(20px, -30px) scale(1.2);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(-10px, -50px) scale(0.8);
+    opacity: 0.2;
+  }
+  75% {
+    transform: translate(-30px, -20px) scale(1.1);
+    opacity: 0.25;
+  }
+}
+
+/* Vignette overlay */
+.vignette-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  transition: box-shadow 1.5s ease-in-out;
+}
+
+/* Background transition effect */
+.background-transition {
+  animation: backgroundPulse 1s ease-out;
+}
+
+@keyframes backgroundPulse {
+  0% {
+    filter: brightness(2) saturate(1.5);
+  }
+  50% {
+    filter: brightness(1.5) saturate(1.3);
+  }
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+}
+
+/* Enemy-specific ambient effects */
+.enemy-skeleton-bg::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at center, transparent 0%, rgba(74, 0, 128, 0.1) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Boss entrance background flash */
+.boss-bg-flash {
+  animation: bossBgFlash 0.5s ease-out;
+}
+
+@keyframes bossBgFlash {
+  0% {
+    filter: brightness(3) contrast(1.2);
+  }
+  100% {
+    filter: brightness(1) contrast(1);
+  }
+}
+
