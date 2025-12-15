@@ -50,6 +50,7 @@ const ninjaGrid = $("#ninja-grid");
 const difficultyButtons = $("#difficulty-buttons");
 const highScoreValue = $("#high-score-value");
 const startBtn = $("#start-btn");
+const muteBtn = $("#mute-btn");
 
 // Game screen
 const currentScore = $("#current-score");
@@ -416,6 +417,7 @@ function handleIdleAttack(): void {
   gameState = result.state;
 
   if (result.attacked) {
+    playSound("hit");
     showAttackEffect("enemy");
     showDamagePopup("player", result.damage);
     updateHealthBars();
@@ -424,6 +426,7 @@ function handleIdleAttack(): void {
     ninjaMessage.className = "ninja-message comfort";
 
     if (result.playerDefeated) {
+      playSound("gameOver");
       showGameOver();
     }
   }
@@ -490,6 +493,7 @@ difficultyButtons.addEventListener("click", (e) => {
  * Rozpoczęcie gry
  */
 startBtn.addEventListener("click", () => {
+  playSound("start");
   gameState = startGame(gameState);
   showScreen("game");
 });
@@ -498,6 +502,7 @@ startBtn.addEventListener("click", () => {
  * Powrót do menu
  */
 backBtn.addEventListener("click", () => {
+  playSound("click");
   stopIdleTimer();
   gameState.isGameActive = false;
   showScreen("start");
@@ -521,8 +526,10 @@ function handleSubmit(): void {
   const result = processAnswer(gameState, userAnswer);
   gameState = result.state;
 
-  // Pokaż animacje walki
+  // Pokaż animacje walki i odtwórz dźwięki
   if (result.playerAttacked) {
+    playSound("correct");
+    playSound("attack");
     showAttackEffect("player");
     showDamagePopup("enemy", result.damageDealt);
     // Pokaż heal jeśli gracz się uleczył
@@ -530,6 +537,8 @@ function handleSubmit(): void {
       setTimeout(() => showDamagePopup("player", 5, true), 300);
     }
   } else if (result.enemyAttacked) {
+    playSound("wrong");
+    playSound("hit");
     showAttackEffect("enemy");
     showDamagePopup("player", result.damageTaken);
   }
@@ -546,12 +555,14 @@ function handleSubmit(): void {
   // Sprawdź czy wróg pokonany
   if (result.enemyDefeated) {
     enemiesDefeated++;
+    playSound("victory");
     battleEffect.classList.add("enemy-defeated");
     setTimeout(() => battleEffect.classList.remove("enemy-defeated"), 1000);
   }
 
   // Sprawdź czy gracz przegrał
   if (result.playerDefeated) {
+    playSound("gameOver");
     showGameOver();
     return;
   }
@@ -590,6 +601,7 @@ answerInput.addEventListener("focus", () => {
  * Restart gry po przegranej
  */
 restartBtn.addEventListener("click", () => {
+  playSound("start");
   enemiesDefeated = 0;
   const currentNinja = gameState.currentNinja;
   const difficulty = gameState.difficulty;
@@ -622,6 +634,7 @@ restartBtn.addEventListener("click", () => {
  * Powrót do menu głównego po przegranej
  */
 menuBtn.addEventListener("click", () => {
+  playSound("click");
   enemiesDefeated = 0;
   showScreen("start");
 });
@@ -630,7 +643,30 @@ menuBtn.addEventListener("click", () => {
 // INICJALIZACJA
 // ============================================================================
 
+/**
+ * Aktualizuje ikonę przycisku mute
+ */
+function updateMuteButton(): void {
+  muteBtn.textContent = getMuted() ? "🔇" : "🔊";
+  muteBtn.setAttribute(
+    "aria-label",
+    getMuted() ? "Włącz dźwięki" : "Wycisz dźwięki"
+  );
+}
+
+/**
+ * Obsługa przycisku mute
+ */
+muteBtn.addEventListener("click", () => {
+  toggleMuted();
+  updateMuteButton();
+  if (!getMuted()) {
+    playSound("click");
+  }
+});
+
 function init(): void {
+  updateMuteButton();
   showScreen("start");
 }
 
