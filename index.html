@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/ninja-icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ninjago Math - Nauka matematyki z ninja!</title>
+    <meta name="description" content="Gra edukacyjna ucząca dzieci dodawania i odejmowania w świecie Ninjago" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- EKRAN STARTOWY -->
+      <div id="start-screen" class="screen">
+        <h1 class="title">🥷 Ninjago Math 🥷</h1>
+        <p class="subtitle">Naucz się liczyć z ninja!</p>
+        
+        <!-- Wybór postaci -->
+        <section class="ninja-selection">
+          <h2>Wybierz swojego ninja:</h2>
+          <div id="ninja-grid" class="ninja-grid"></div>
+        </section>
+        
+        <!-- Wybór trudności -->
+        <section class="difficulty-selection">
+          <h2>Poziom trudności:</h2>
+          <div id="difficulty-buttons" class="difficulty-buttons"></div>
+        </section>
+        
+        <!-- Rekord -->
+        <div class="high-score-display">
+          <span>🏆 Rekord: </span>
+          <span id="high-score-value">0</span>
+        </div>
+        
+        <button id="start-btn" class="btn btn-start">Rozpocznij trening!</button>
+      </div>
+      
+      <!-- EKRAN GRY -->
+      <div id="game-screen" class="screen hidden">
+        <!-- Nagłówek z wynikiem -->
+        <header class="game-header">
+          <div class="score-display">
+            <span>Punkty: </span>
+            <span id="current-score">0</span>
+          </div>
+          <div class="streak-display">
+            <span>Seria: </span>
+            <span id="current-streak">0</span>
+            <span>🔥</span>
+          </div>
+          <button id="back-btn" class="btn btn-small">⬅ Menu</button>
+        </header>
+        
+        <!-- Avatar ninja -->
+        <div id="ninja-avatar" class="ninja-avatar"></div>
+        
+        <!-- Zadanie matematyczne -->
+        <div class="problem-container">
+          <div id="problem-display" class="problem-display"></div>
+        </div>
+        
+        <!-- Pole odpowiedzi -->
+        <div class="answer-container">
+          <input 
+            type="number" 
+            id="answer-input" 
+            class="answer-input" 
+            placeholder="?" 
+            autocomplete="off"
+            inputmode="numeric"
+          />
+          <button id="submit-btn" class="btn btn-submit">Sprawdź!</button>
+        </div>
+        
+        <!-- Feedback -->
+        <div id="feedback" class="feedback"></div>
+        
+        <!-- Wiadomość ninja -->
+        <div id="ninja-message" class="ninja-message"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
