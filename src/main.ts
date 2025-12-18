@@ -257,13 +257,6 @@ function showStoryOverlay(
 
   overlay.addEventListener("click", dismiss);
   overlay.addEventListener("touchstart", dismiss);
-
-  // Auto-dismiss after 5 seconds
-  setTimeout(() => {
-    if (document.body.contains(overlay)) {
-      dismiss();
-    }
-  }, 5000);
 }
 
 /**
