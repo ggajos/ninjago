@@ -1814,3 +1814,467 @@ h2 {
   }
 }
 
+/* ============================================================================
+   STEP-01: HAPTIC FEEDBACK (Visual companion effects)
+   ============================================================================ */
+
+/* Visual pulse when haptic triggers (for non-haptic devices) */
+.haptic-pulse {
+  animation: hapticPulse 0.1s ease-out;
+}
+
+@keyframes hapticPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================================
+   STEP-02: ELEMENTAL EFFECTS
+   ============================================================================ */
+
+.elemental-effect {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.elemental-particle {
+  position: absolute;
+  font-size: 1.5rem;
+  animation: elementalBurst 1s ease-out forwards;
+  filter: drop-shadow(0 0 10px var(--color, #fff));
+}
+
+@keyframes elementalBurst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.5) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(-50% + cos(calc(var(--i) * 30deg)) * 100px),
+      calc(-50% + sin(calc(var(--i) * 30deg)) * 100px)
+    ) scale(1.5) rotate(360deg);
+  }
+}
+
+/* Fallback for browsers without trig functions */
+.elemental-particle:nth-child(1) { --tx: 100px; --ty: 0; }
+.elemental-particle:nth-child(2) { --tx: 87px; --ty: 50px; }
+.elemental-particle:nth-child(3) { --tx: 50px; --ty: 87px; }
+.elemental-particle:nth-child(4) { --tx: 0; --ty: 100px; }
+.elemental-particle:nth-child(5) { --tx: -50px; --ty: 87px; }
+.elemental-particle:nth-child(6) { --tx: -87px; --ty: 50px; }
+.elemental-particle:nth-child(7) { --tx: -100px; --ty: 0; }
+.elemental-particle:nth-child(8) { --tx: -87px; --ty: -50px; }
+.elemental-particle:nth-child(9) { --tx: -50px; --ty: -87px; }
+.elemental-particle:nth-child(10) { --tx: 0; --ty: -100px; }
+.elemental-particle:nth-child(11) { --tx: 50px; --ty: -87px; }
+.elemental-particle:nth-child(12) { --tx: 87px; --ty: -50px; }
+
+.elemental-particle {
+  animation: elementalBurstFallback 1s ease-out forwards;
+}
+
+@keyframes elementalBurstFallback {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(-50% + var(--tx, 0px)),
+      calc(-50% + var(--ty, 0px))
+    ) scale(1.2);
+  }
+}
+
+/* Element-specific colors */
+.elemental-effect.kai .elemental-particle {
+  color: #ff4400;
+  text-shadow: 0 0 20px #ff6600, 0 0 40px #ff4400;
+}
+
+.elemental-effect.zane .elemental-particle {
+  color: #87ceeb;
+  text-shadow: 0 0 20px #00ffff, 0 0 40px #87ceeb;
+}
+
+.elemental-effect.jay .elemental-particle {
+  color: #ffff00;
+  text-shadow: 0 0 20px #0088ff, 0 0 40px #ffff00;
+}
+
+.elemental-effect.cole .elemental-particle {
+  color: #8b4513;
+  text-shadow: 0 0 20px #5a3510, 0 0 40px #8b4513;
+}
+
+.elemental-effect.nya .elemental-particle {
+  color: #4169e1;
+  text-shadow: 0 0 20px #1e90ff, 0 0 40px #4169e1;
+}
+
+.elemental-effect.lloyd .elemental-particle {
+  color: #228b22;
+  text-shadow: 0 0 20px #ffd700, 0 0 40px #228b22;
+}
+
+/* ============================================================================
+   STEP-03: ENHANCED HEALTH BAR ANIMATIONS
+   ============================================================================ */
+
+/* Smooth transition for health changes */
+.health-fill {
+  transition: width 0.3s ease-out, background 0.3s ease;
+}
+
+/* Health pulse animation on damage */
+.health-fill.animating {
+  animation: healthPulse 0.3s ease-out;
+}
+
+@keyframes healthPulse {
+  0% { filter: brightness(2); }
+  50% { filter: brightness(1.5); }
+  100% { filter: brightness(1); }
+}
+
+/* Critical health state - pulsing red glow */
+.health-fill.critical {
+  animation: criticalPulse 0.5s ease-in-out infinite !important;
+}
+
+@keyframes criticalPulse {
+  0%, 100% { 
+    box-shadow: inset 0 0 10px rgba(255, 0, 0, 0.5);
+    filter: brightness(1);
+  }
+  50% { 
+    box-shadow: inset 0 0 20px rgba(255, 0, 0, 0.8);
+    filter: brightness(1.3);
+  }
+}
+
+/* Low health warning state (< 30%) */
+.health-fill.low-health {
+  background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+  animation: lowHealthWarning 1s ease-in-out infinite;
+}
+
+@keyframes lowHealthWarning {
+  0%, 100% { 
+    opacity: 1;
+    box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+  }
+  50% { 
+    opacity: 0.7;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.8);
+  }
+}
+
+/* Health bar container shake on damage */
+.health-bar-container.damage-shake {
+  animation: healthBarShake 0.3s ease-out;
+}
+
+@keyframes healthBarShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* Color gradient based on health percentage - handled via JS classes */
+.health-fill.health-high {
+  background: linear-gradient(90deg, #22c55e, #4ade80) !important;
+}
+
+.health-fill.health-medium {
+  background: linear-gradient(90deg, #eab308, #facc15) !important;
+}
+
+.health-fill.health-low {
+  background: linear-gradient(90deg, #f97316, #fb923c) !important;
+}
+
+.health-fill.health-critical {
+  background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+}
+
+/* Health text pulse on change */
+.health-text.changed {
+  animation: healthTextPulse 0.3s ease-out;
+}
+
+@keyframes healthTextPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); color: #fff; }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================================
+   STEP-04: PROBLEM TRANSITION EFFECTS
+   ============================================================================ */
+
+.problem-display {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.problem-exit {
+  animation: problemExit 0.15s ease-in forwards;
+}
+
+@keyframes problemExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8) translateY(-20px);
+  }
+}
+
+.problem-enter {
+  animation: problemEnter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes problemEnter {
+  0% {
+    opacity: 0;
+    transform: scale(1.2) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ============================================================================
+   STEP-05: ESCALATING COMBO VISUALS
+   ============================================================================ */
+
+/* Enhanced combo display with tiers */
+.combo-display {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 500;
+  pointer-events: none;
+  animation: comboAppear 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.combo-number {
+  font-size: calc(4rem * var(--combo-scale, 1));
+  font-weight: bold;
+  color: var(--accent-gold);
+  text-shadow: 
+    0 0 var(--combo-glow, 20px) rgba(255, 215, 0, 0.8),
+    0 0 calc(var(--combo-glow, 20px) * 2) rgba(255, 107, 0, 0.6);
+  line-height: 1;
+}
+
+.combo-label {
+  font-size: calc(1.5rem * var(--combo-scale, 1));
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.1em;
+}
+
+/* Super tier (5+ combo) */
+.combo-display.super .combo-number {
+  color: #ff6b00;
+  text-shadow: 
+    0 0 30px rgba(255, 107, 0, 0.9),
+    0 0 60px rgba(255, 68, 0, 0.7);
+}
+
+.combo-display.super .combo-label {
+  color: #ff6b00;
+}
+
+/* Epic tier (7+ combo) */
+.combo-display.epic .combo-number {
+  color: #ff00ff;
+  text-shadow: 
+    0 0 40px rgba(255, 0, 255, 0.9),
+    0 0 80px rgba(200, 0, 255, 0.7);
+  animation: epicPulse 0.3s ease-in-out infinite;
+}
+
+.combo-display.epic .combo-label {
+  color: #ff00ff;
+  text-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+}
+
+@keyframes epicPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Legendary tier (10+ combo) */
+.combo-display.legendary .combo-number {
+  background: linear-gradient(45deg, #ffd700, #ff6b00, #ff0000, #ff00ff, #00ffff, #ffd700);
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: legendaryRainbow 1s ease infinite, legendaryPulse 0.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 30px #ffd700) drop-shadow(0 0 60px #ff6b00);
+}
+
+.combo-display.legendary .combo-label {
+  background: linear-gradient(45deg, #ffd700, #ff6b00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 2rem;
+}
+
+@keyframes legendaryRainbow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes legendaryPulse {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  50% { transform: scale(1.1) rotate(2deg); }
+}
+
+/* Screen border pulse for epic+ combos */
+.combo-border-pulse::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 400;
+  border: 8px solid transparent;
+  animation: borderPulse 1s ease-out forwards;
+}
+
+@keyframes borderPulse {
+  0% {
+    border-color: rgba(255, 0, 255, 0.8);
+    box-shadow: inset 0 0 50px rgba(255, 0, 255, 0.5);
+  }
+  100% {
+    border-color: transparent;
+    box-shadow: inset 0 0 0 transparent;
+  }
+}
+
+/* ============================================================================
+   STEP-06: NUMPAD BUTTON PRESS FEEDBACK
+   ============================================================================ */
+
+.numpad-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+
+/* Pressed state animation */
+.numpad-btn.numpad-pressed {
+  animation: numpadPress 0.15s ease-out;
+  background: var(--current-ninja-color) !important;
+  box-shadow: 0 0 20px var(--current-ninja-color);
+}
+
+@keyframes numpadPress {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+/* Ripple effect */
+.numpad-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
+
+.numpad-btn.numpad-pressed::after {
+  animation: numpadRipple 0.4s ease-out;
+}
+
+@keyframes numpadRipple {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.5;
+  }
+  100% {
+    width: 150%;
+    height: 150%;
+    opacity: 0;
+  }
+}
+
+/* Glow effect on hover */
+.numpad-btn:hover {
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+/* Active state */
+.numpad-btn:active {
+  background: var(--current-ninja-color) !important;
+  transform: scale(0.95);
+  box-shadow: 0 0 25px var(--current-ninja-color);
+}
+
+/* Attack button enhanced feedback */
+.action-attack {
+  position: relative;
+  overflow: hidden;
+}
+
+.action-attack::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: attackReady 2s ease-in-out infinite;
+}
+
+.action-attack:active::before {
+  animation: none;
+  transform: translateX(100%);
+  transition: transform 0.3s;
+}
+
+@keyframes attackReady {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Backspace button feedback */
+.action-backspace {
+  position: relative;
+  overflow: hidden;
+}
+
+.action-backspace:active {
+  background: var(--error) !important;
+  transform: scale(0.95);
+}
+

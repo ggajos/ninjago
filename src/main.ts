@@ -25,12 +25,107 @@ import {
 import { playSound, getMuted, toggleMuted } from "./sounds";
 
 // ============================================================================
+// HAPTIC FEEDBACK SYSTEM (STEP-01)
+// ============================================================================
+
+/**
+ * Haptic feedback for mobile devices using Navigator Vibration API
+ */
+function hapticFeedback(pattern: "tap" | "hit" | "combo" | "damage"): void {
+  if (!navigator.vibrate) return;
+
+  const patterns: Record<string, number | number[]> = {
+    tap: 10,
+    hit: 50,
+    combo: [30, 20, 30, 20, 50],
+    damage: [100, 30, 100],
+  };
+
+  navigator.vibrate(patterns[pattern]);
+}
+
+// ============================================================================
+// ELEMENTAL EFFECTS SYSTEM (STEP-02)
+// ============================================================================
+
+interface ElementalConfig {
+  particles: string[];
+  colors: string[];
+  glowColor: string;
+}
+
+const ELEMENTAL_EFFECTS: Record<string, ElementalConfig> = {
+  kai: {
+    particles: ["🔥", "💥", "✨"],
+    colors: ["#ff4400", "#ff6600", "#ffaa00"],
+    glowColor: "#ff4400",
+  },
+  zane: {
+    particles: ["❄️", "💎", "✨"],
+    colors: ["#87ceeb", "#00ffff", "#ffffff"],
+    glowColor: "#00ffff",
+  },
+  jay: {
+    particles: ["⚡", "💫", "✨"],
+    colors: ["#ffff00", "#0088ff", "#ffffff"],
+    glowColor: "#ffff00",
+  },
+  cole: {
+    particles: ["🪨", "💪", "✨"],
+    colors: ["#8b4513", "#5a3510", "#a0522d"],
+    glowColor: "#8b4513",
+  },
+  nya: {
+    particles: ["💧", "🌊", "✨"],
+    colors: ["#4169e1", "#1e90ff", "#00bfff"],
+    glowColor: "#4169e1",
+  },
+  lloyd: {
+    particles: ["✨", "💚", "⭐"],
+    colors: ["#228b22", "#ffd700", "#32cd32"],
+    glowColor: "#228b22",
+  },
+};
+
+/**
+ * Shows elemental particle effect based on ninja's element
+ */
+function showElementalEffect(ninjaId: string, x: number, y: number): void {
+  const config = ELEMENTAL_EFFECTS[ninjaId] || ELEMENTAL_EFFECTS.lloyd;
+
+  const container = document.createElement("div");
+  container.className = `elemental-effect ${ninjaId}`;
+  container.style.position = "fixed";
+  container.style.left = `${x}px`;
+  container.style.top = `${y}px`;
+  container.style.pointerEvents = "none";
+  container.style.zIndex = "1000";
+
+  for (let i = 0; i < 12; i++) {
+    const particle = document.createElement("span");
+    particle.className = "elemental-particle";
+    particle.textContent =
+      config.particles[Math.floor(Math.random() * config.particles.length)];
+    particle.style.setProperty("--i", String(i));
+    particle.style.setProperty(
+      "--color",
+      config.colors[Math.floor(Math.random() * config.colors.length)]
+    );
+    container.appendChild(particle);
+  }
+
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 1000);
+}
+
+// ============================================================================
 // STAN APLIKACJI
 // ============================================================================
 
 let gameState: GameState = createInitialState();
 let idleCheckInterval: number | null = null;
 let idleTimerInterval: number | null = null;
+let problemTransitionTimeout: number | null = null; // Track problem animation timeout
 
 // ============================================================================
 // STORY & JOURNEY SYSTEM
@@ -384,23 +479,64 @@ function particleBurst(
 }
 
 /**
- * Efekt combo
+ * Efekt combo z eskalującą intensywnością (STEP-05)
  */
-function showComboEffect(streak: number): void {
-  if (streak < 3) return;
+function showComboEffect(streak: number, ninjaId: string): void {
+  if (streak < 2) return;
 
   const combo = document.createElement("div");
   combo.className = "combo-display";
-  combo.textContent = `${streak}x COMBO!`;
 
-  if (streak >= 5) {
-    combo.style.color = "#ff4444";
-    combo.style.textShadow =
-      "0 0 30px rgba(255, 68, 68, 0.8), 0 0 60px rgba(255, 0, 0, 0.6)";
+  // Escalating intensity based on streak
+  const intensity = Math.min(streak, 10);
+  combo.style.setProperty("--combo-scale", String(1 + intensity * 0.1));
+  combo.style.setProperty("--combo-glow", `${10 + intensity * 5}px`);
+
+  // Determine combo tier
+  let tierLabel = "";
+  let tierClass = "";
+
+  if (streak >= 10) {
+    tierClass = "legendary";
+    tierLabel = "LEGENDARY!";
+    // Add screen flash for legendary
+    lightningFlash();
+    // Show elemental burst
+    const rect = document.body.getBoundingClientRect();
+    showElementalEffect(ninjaId, rect.width / 2, rect.height / 2);
+  } else if (streak >= 7) {
+    tierClass = "epic";
+    tierLabel = "EPIC!";
+  } else if (streak >= 5) {
+    tierClass = "super";
+    tierLabel = "SUPER!";
+  } else if (streak >= 3) {
+    tierLabel = "COMBO!";
+  } else {
+    tierLabel = "";
   }
 
+  // Only add class if it's not empty
+  if (tierClass) {
+    combo.classList.add(tierClass);
+  }
+  combo.innerHTML = `
+    <span class="combo-number">${streak}x</span>
+    <span class="combo-label">${tierLabel}</span>
+  `;
+
   document.body.appendChild(combo);
-  setTimeout(() => combo.remove(), 800);
+
+  // Add screen border pulse for epic+
+  if (streak >= 7) {
+    document.body.classList.add("combo-border-pulse");
+    setTimeout(
+      () => document.body.classList.remove("combo-border-pulse"),
+      1000
+    );
+  }
+
+  setTimeout(() => combo.remove(), 1000);
 }
 
 /**
@@ -771,7 +907,7 @@ function renderGameScreen(): void {
 }
 
 /**
- * Aktualizuje paski zdrowia
+ * Aktualizuje paski zdrowia z animacjami (STEP-03)
  */
 function updateHealthBars(): void {
   const playerPercent =
@@ -784,9 +920,56 @@ function updateHealthBars(): void {
   playerHealthText.textContent = `${gameState.playerHealth}/${gameState.maxPlayerHealth}`;
   enemyHealthText.textContent = `${gameState.enemyHealth}/${gameState.maxEnemyHealth}`;
 
-  // Zmiana koloru przy niskim zdrowiu
-  playerHealthFill.classList.toggle("low-health", playerPercent <= 30);
-  enemyHealthFill.classList.toggle("low-health", enemyPercent <= 30);
+  // STEP-03: Enhanced health bar states
+  // Remove all health state classes first
+  playerHealthFill.classList.remove(
+    "health-high",
+    "health-medium",
+    "health-low",
+    "health-critical",
+    "low-health",
+    "critical"
+  );
+  enemyHealthFill.classList.remove(
+    "health-high",
+    "health-medium",
+    "health-low",
+    "health-critical",
+    "low-health",
+    "critical"
+  );
+
+  // Apply color gradient based on health percentage
+  const applyHealthClass = (element: HTMLElement, percent: number) => {
+    if (percent > 60) {
+      element.classList.add("health-high");
+    } else if (percent > 40) {
+      element.classList.add("health-medium");
+    } else if (percent > 25) {
+      element.classList.add("health-low");
+      element.classList.add("low-health");
+    } else {
+      element.classList.add("health-critical");
+      element.classList.add("low-health");
+      element.classList.add("critical");
+    }
+  };
+
+  applyHealthClass(playerHealthFill, playerPercent);
+  applyHealthClass(enemyHealthFill, enemyPercent);
+
+  // Trigger pulse animation on change
+  playerHealthFill.classList.add("animating");
+  enemyHealthFill.classList.add("animating");
+  playerHealthText.classList.add("changed");
+  enemyHealthText.classList.add("changed");
+
+  setTimeout(() => {
+    playerHealthFill.classList.remove("animating");
+    enemyHealthFill.classList.remove("animating");
+    playerHealthText.classList.remove("changed");
+    enemyHealthText.classList.remove("changed");
+  }, 300);
 }
 
 /**
@@ -1097,6 +1280,7 @@ function handleSubmit(): void {
   if (result.playerAttacked) {
     playSound("correct");
     playSound("attack");
+    hapticFeedback("hit"); // STEP-01: Haptic feedback
     showAttackEffect("player");
     showDamagePopup("enemy", result.damageDealt);
 
@@ -1104,9 +1288,20 @@ function handleSubmit(): void {
     ninjaAvatar.classList.add("power-up");
     setTimeout(() => ninjaAvatar.classList.remove("power-up"), 500);
 
-    // Combo effects
-    if (gameState.streak >= 3) {
-      showComboEffect(gameState.streak);
+    // STEP-02: Elemental effect on attack
+    const ninjaRect = ninjaAvatar.getBoundingClientRect();
+    showElementalEffect(
+      gameState.currentNinja.id,
+      ninjaRect.left + ninjaRect.width / 2,
+      ninjaRect.top + ninjaRect.height / 2
+    );
+
+    // Combo effects with escalating visuals (STEP-05)
+    if (gameState.streak >= 2) {
+      showComboEffect(gameState.streak, gameState.currentNinja.id);
+      if (gameState.streak >= 5) {
+        hapticFeedback("combo"); // STEP-01: Combo haptic
+      }
     }
 
     // Ultimate attack przy max combo
@@ -1132,6 +1327,7 @@ function handleSubmit(): void {
     // EPIC EFFECTS dla błędnej odpowiedzi
     playSound("wrong");
     playSound("hit");
+    hapticFeedback("damage"); // STEP-01: Damage haptic
     showAttackEffect("enemy");
     showDamagePopup("player", result.damageTaken);
 
@@ -1222,9 +1418,30 @@ function handleSubmit(): void {
     return;
   }
 
-  // Nowe zadanie natychmiast
+  // Nowe zadanie z animacją przejścia (STEP-04)
   if (gameState.currentProblem && !gameState.isGameOver) {
-    problemDisplay.textContent = formatProblem(gameState.currentProblem);
+    // Cancel any pending animation from previous answer
+    if (problemTransitionTimeout) {
+      clearTimeout(problemTransitionTimeout);
+      problemTransitionTimeout = null;
+    }
+
+    // Capture the problem NOW to avoid stale closure issues
+    const newProblem = gameState.currentProblem;
+    const newProblemText = formatProblem(newProblem);
+
+    // Clear animation classes immediately
+    problemDisplay.classList.remove("problem-exit", "problem-enter");
+
+    // Exit animation
+    problemDisplay.classList.add("problem-exit");
+    problemTransitionTimeout = window.setTimeout(() => {
+      problemDisplay.textContent = newProblemText;
+      problemDisplay.classList.remove("problem-exit");
+      problemDisplay.classList.add("problem-enter");
+      setTimeout(() => problemDisplay.classList.remove("problem-enter"), 300);
+      problemTransitionTimeout = null;
+    }, 150);
   }
   answerInput.value = "";
   answerDisplay.textContent = "?";
@@ -1252,10 +1469,19 @@ function updateAnswerDisplay(): void {
  */
 numpad.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
+  const btn = target.closest(".numpad-btn") as HTMLElement;
   const num = target.dataset.num;
 
   if (num !== undefined && !gameState.isGameOver) {
     playSound("click");
+    hapticFeedback("tap"); // STEP-01: Button tap haptic
+
+    // STEP-06: Visual feedback on button press
+    if (btn) {
+      btn.classList.add("numpad-pressed");
+      setTimeout(() => btn.classList.remove("numpad-pressed"), 150);
+    }
+
     // Limit do 4 cyfr
     if (answerInput.value.length < 4) {
       answerInput.value += num;
@@ -1270,6 +1496,7 @@ numpad.addEventListener("click", (e) => {
 backspaceBtn.addEventListener("click", () => {
   if (!gameState.isGameOver && answerInput.value.length > 0) {
     playSound("click");
+    hapticFeedback("tap"); // STEP-01: Button tap haptic
     answerInput.value = answerInput.value.slice(0, -1);
     updateAnswerDisplay();
   }

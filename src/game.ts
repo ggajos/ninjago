@@ -535,6 +535,38 @@ export function generateProblem(difficulty: DifficultyConfig): MathProblem {
 }
 
 /**
+ * Sprawdza czy dwa zadania są identyczne.
+ */
+function isSameProblem(a: MathProblem | null, b: MathProblem): boolean {
+  if (!a) return false;
+  return (
+    a.operand1 === b.operand1 &&
+    a.operand2 === b.operand2 &&
+    a.operator === b.operator
+  );
+}
+
+/**
+ * Generuje nowe zadanie, które jest różne od poprzedniego.
+ * Próbuje maksymalnie 10 razy, potem zwraca cokolwiek.
+ */
+export function generateUniqueProblem(
+  difficulty: DifficultyConfig,
+  previousProblem: MathProblem | null
+): MathProblem {
+  let newProblem = generateProblem(difficulty);
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  while (isSameProblem(previousProblem, newProblem) && attempts < maxAttempts) {
+    newProblem = generateProblem(difficulty);
+    attempts++;
+  }
+
+  return newProblem;
+}
+
+/**
  * Sprawdza poprawność odpowiedzi.
  */
 export function checkAnswer(problem: MathProblem, userAnswer: number): boolean {
@@ -798,7 +830,9 @@ export function processAnswer(
     score: newScore,
     highScore: newHighScore,
     streak: newStreak,
-    currentProblem: playerDefeated ? null : generateProblem(state.difficulty),
+    currentProblem: playerDefeated
+      ? null
+      : generateUniqueProblem(state.difficulty, state.currentProblem),
     totalProblems: state.totalProblems + 1,
     correctAnswers: state.correctAnswers + (isCorrect ? 1 : 0),
     playerHealth: newPlayerHealth,

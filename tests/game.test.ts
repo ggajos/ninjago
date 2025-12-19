@@ -5,8 +5,8 @@
  * Przygotowane pod kątem dalszego rozwoju - łatwe do rozszerzenia.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { MathProblem, DifficultyConfig } from "../src/game";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import type { MathProblem, DifficultyConfig, GameState } from "../src/game";
 import {
   // Stałe
   NINJAS,
@@ -16,6 +16,7 @@ import {
   generateAdditionProblem,
   generateSubtractionProblem,
   generateProblem,
+  generateUniqueProblem,
   checkAnswer,
   formatProblem,
 
@@ -189,14 +190,14 @@ describe("Game State Management", () => {
       expect(state.difficulty).toBeDefined();
     });
 
-    it("should have Lloyd as default ninja", () => {
+    it("should have Nya as default ninja (very-easy difficulty)", () => {
       const state = createInitialState();
-      expect(state.currentNinja.id).toBe("lloyd");
+      expect(state.currentNinja.id).toBe("nya");
     });
 
-    it("should have easy as default difficulty", () => {
+    it("should have very-easy as default difficulty", () => {
       const state = createInitialState();
-      expect(state.difficulty.id).toBe("easy");
+      expect(state.difficulty.id).toBe("very-easy");
     });
   });
 
@@ -288,7 +289,7 @@ describe("Game State Management", () => {
       const newState = selectDifficulty(state, "hard");
 
       expect(newState.difficulty.id).toBe("hard");
-      expect(newState.difficulty.maxNumber).toBe(50);
+      expect(newState.difficulty.maxNumber).toBe(35);
     });
   });
 });
@@ -326,8 +327,8 @@ describe("Game Constants", () => {
   });
 
   describe("DIFFICULTIES", () => {
-    it("should have 4 difficulty levels", () => {
-      expect(DIFFICULTIES).toHaveLength(4);
+    it("should have 6 difficulty levels", () => {
+      expect(DIFFICULTIES).toHaveLength(6);
     });
 
     it("should have increasing maxNumber", () => {
@@ -404,17 +405,282 @@ describe("Persistence (localStorage)", () => {
     expect(loaded).toBeNull();
   });
 
-  it("should restore state from saved data", () => {
+  it("should restore state from saved data (ninja auto-selected by difficulty)", () => {
     saveGameData({
       highScore: 500,
-      selectedNinjaId: "nya",
+      selectedNinjaId: "kai", // This is ignored - ninja is auto-selected by difficulty
       selectedDifficultyId: "master",
     });
 
     const state = createInitialState();
 
     expect(state.highScore).toBe(500);
-    expect(state.currentNinja.id).toBe("nya");
+    // Ninja is auto-selected based on difficulty (master -> lloyd)
+    expect(state.currentNinja.id).toBe("lloyd");
     expect(state.difficulty.id).toBe("master");
+  });
+});
+
+// ============================================================================
+// TIMING TESTS - Problem transitions and rapid answers
+// ============================================================================
+
+describe("Problem Transitions (Timing)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("should generate unique problems on consecutive answers", () => {
+    let state = createInitialState();
+    state = startGame(state);
+
+    const problem1 = state.currentProblem!;
+    expect(problem1).not.toBeNull();
+
+    // Answer correctly
+    const result1 = processAnswer(state, problem1.correctAnswer);
+    state = result1.state;
+    const problem2 = state.currentProblem!;
+
+    // Problem should be different
+    expect(problem2).not.toBeNull();
+    const isSame =
+      problem1.operand1 === problem2.operand1 &&
+      problem1.operand2 === problem2.operand2 &&
+      problem1.operator === problem2.operator;
+    expect(isSame).toBe(false);
+  });
+
+  it("should handle rapid consecutive answers without losing state", () => {
+    let state = createInitialState();
+    state = startGame(state);
+
+    const problems: (typeof state.currentProblem)[] = [state.currentProblem];
+
+    // Simulate 5 rapid correct answers
+    for (let i = 0; i < 5; i++) {
+      const currentProblem = state.currentProblem!;
+      const result = processAnswer(state, currentProblem.correctAnswer);
+      state = result.state;
+      problems.push(state.currentProblem);
+
+      // Advance time by only 50ms (less than 150ms animation)
+      vi.advanceTimersByTime(50);
+    }
+
+    // All problems should be stored (no nulls except if game ended)
+    const validProblems = problems.filter((p) => p !== null);
+    expect(validProblems.length).toBe(6); // Initial + 5 new ones
+
+    // Score should reflect all correct answers
+    expect(state.correctAnswers).toBe(5);
+  });
+
+  it("should track problem sequence correctly during rapid input", () => {
+    let state = createInitialState();
+    state = startGame(state);
+
+    // Track the sequence of problems
+    const problemSequence: string[] = [];
+
+    const formatProblemKey = (p: typeof state.currentProblem) =>
+      p ? `${p.operand1}${p.operator}${p.operand2}` : "null";
+
+    problemSequence.push(formatProblemKey(state.currentProblem));
+
+    // Answer 3 times rapidly
+    for (let i = 0; i < 3; i++) {
+      const result = processAnswer(state, state.currentProblem!.correctAnswer);
+      state = result.state;
+      problemSequence.push(formatProblemKey(state.currentProblem));
+    }
+
+    // Each problem in sequence should be unique
+    const uniqueProblems = new Set(problemSequence);
+    expect(uniqueProblems.size).toBe(problemSequence.length);
+  });
+
+  it("should maintain correct problem after animation timeout completes", () => {
+    let state = createInitialState();
+    state = startGame(state);
+
+    const problem1 = state.currentProblem!;
+
+    // Answer and capture the new problem immediately
+    const result = processAnswer(state, problem1.correctAnswer);
+    state = result.state;
+    const problem2 = state.currentProblem!;
+
+    // Advance past the 150ms animation delay
+    vi.advanceTimersByTime(200);
+
+    // State should still have problem2
+    expect(state.currentProblem).toBe(problem2);
+    expect(state.currentProblem).not.toBe(problem1);
+  });
+
+  it("should handle answer before animation completes then another answer", () => {
+    let state = createInitialState();
+    state = startGame(state);
+
+    const problem1 = state.currentProblem!;
+
+    // First answer
+    state = processAnswer(state, problem1.correctAnswer).state;
+    const problem2 = state.currentProblem!;
+
+    // Only 50ms passes (animation not complete)
+    vi.advanceTimersByTime(50);
+
+    // Second answer before animation finishes
+    state = processAnswer(state, problem2.correctAnswer).state;
+    const problem3 = state.currentProblem!;
+
+    // Now let all animations complete
+    vi.advanceTimersByTime(300);
+
+    // Final state should have problem3
+    expect(state.currentProblem).toBe(problem3);
+
+    // All three problems should be different
+    expect(formatProblem(problem1)).not.toBe(formatProblem(problem2));
+    expect(formatProblem(problem2)).not.toBe(formatProblem(problem3));
+  });
+});
+
+// ============================================================================
+// BUG INVESTIGATION: Visual same-problem after answer
+// ============================================================================
+
+describe("Bug Investigation: Same Visual Problem", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("formatProblem should produce different strings for different problems", () => {
+    // This test checks if formatProblem can accidentally produce
+    // the same visual string for two different internal problems
+    const problem1: MathProblem = {
+      operand1: 5,
+      operand2: 3,
+      operator: "+",
+      correctAnswer: 8,
+    };
+    const problem2: MathProblem = {
+      operand1: 6,
+      operand2: 2,
+      operator: "+",
+      correctAnswer: 8,
+    };
+
+    expect(formatProblem(problem1)).toBe("5 + 3 = ?");
+    expect(formatProblem(problem2)).toBe("6 + 2 = ?");
+    expect(formatProblem(problem1)).not.toBe(formatProblem(problem2));
+  });
+
+  it("generateUniqueProblem should produce visually different problems", () => {
+    const difficulty = DIFFICULTIES.find((d) => d.id === "very-easy")!;
+
+    // Run many trials to catch potential collisions
+    for (let i = 0; i < 50; i++) {
+      const problem1: MathProblem = {
+        operand1: 2,
+        operand2: 1,
+        operator: "+",
+        correctAnswer: 3,
+      };
+      const problem2 = generateUniqueProblem(difficulty, problem1);
+
+      const formatted1 = formatProblem(problem1);
+      const formatted2 = formatProblem(problem2);
+
+      expect(formatted1).not.toBe(formatted2);
+    }
+  });
+
+  it("consecutive processAnswer calls should never show same visual problem", () => {
+    let state = createInitialState();
+    state = startGame(state);
+
+    const seenFormattedProblems: string[] = [];
+
+    // Simulate 20 consecutive correct answers
+    for (let i = 0; i < 20; i++) {
+      const currentProblem = state.currentProblem!;
+      const formattedCurrent = formatProblem(currentProblem);
+
+      // Check this problem wasn't just shown
+      if (seenFormattedProblems.length > 0) {
+        const lastShown =
+          seenFormattedProblems[seenFormattedProblems.length - 1];
+        expect(formattedCurrent).not.toBe(lastShown);
+      }
+
+      seenFormattedProblems.push(formattedCurrent);
+
+      // Answer correctly
+      const result = processAnswer(state, currentProblem.correctAnswer);
+      state = result.state;
+    }
+  });
+
+  it("simulates rapid UI updates without race conditions", () => {
+    // This simulates what main.ts does:
+    // 1. processAnswer modifies state
+    // 2. setTimeout(150ms) updates DOM
+    // 3. User answers before timeout completes
+
+    let state = createInitialState();
+    state = startGame(state);
+
+    // Track what the "DOM" would show
+    let domProblemText = formatProblem(state.currentProblem!);
+    let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const simulateAnswer = () => {
+      const currentProblem = state.currentProblem!;
+      const result = processAnswer(state, currentProblem.correctAnswer);
+      state = result.state;
+
+      // Cancel any pending animation (like main.ts does)
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        pendingTimeout = null;
+      }
+
+      // Capture the new problem BEFORE setTimeout (like main.ts should do)
+      const newProblem = state.currentProblem!;
+      const previousDomText = domProblemText;
+
+      // Schedule DOM update (simulating 150ms animation)
+      pendingTimeout = setTimeout(() => {
+        domProblemText = formatProblem(newProblem);
+        pendingTimeout = null;
+
+        // After update, DOM should show different problem
+        expect(domProblemText).not.toBe(previousDomText);
+      }, 150);
+    };
+
+    // Rapid answers - every 50ms (before animation completes)
+    for (let i = 0; i < 5; i++) {
+      simulateAnswer();
+      vi.advanceTimersByTime(50); // Only 50ms between answers
+    }
+
+    // Let final animation complete
+    vi.advanceTimersByTime(200);
+
+    // Final DOM should show current state's problem
+    expect(domProblemText).toBe(formatProblem(state.currentProblem!));
   });
 });
