@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import type { MathProblem, DifficultyConfig, GameState } from "../src/game";
+import type { MathProblem, DifficultyConfig } from "../src/game";
 import {
   // Stałe
   NINJAS,
