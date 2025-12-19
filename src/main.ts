@@ -28,6 +28,241 @@ import { playSound, getMuted, toggleMuted } from "./sounds";
 // HAPTIC FEEDBACK SYSTEM (STEP-01)
 // ============================================================================
 
+// ============================================================================
+// SPEECH SYNTHESIS SYSTEM
+// ============================================================================
+
+let speechEnabled = true;
+let speechVoice: SpeechSynthesisVoice | null = null;
+
+// Load saved speech preference
+const savedSpeech = localStorage.getItem("ninjago-speech");
+if (savedSpeech !== null) {
+  speechEnabled = savedSpeech === "true";
+}
+
+/**
+ * Initialize speech synthesis with Polish voice if available
+ */
+function initSpeech(): void {
+  if (!("speechSynthesis" in window)) return;
+
+  const findPolishVoice = () => {
+    const voices = speechSynthesis.getVoices();
+    // Prefer Polish voices
+    speechVoice =
+      voices.find((v) => v.lang.startsWith("pl")) ||
+      voices.find((v) => v.lang.startsWith("en")) ||
+      voices[0] ||
+      null;
+  };
+
+  // Voices may load asynchronously
+  if (speechSynthesis.getVoices().length > 0) {
+    findPolishVoice();
+  } else {
+    speechSynthesis.onvoiceschanged = findPolishVoice;
+  }
+}
+
+/**
+ * Speak text using Web Speech API
+ */
+function speak(
+  text: string,
+  options?: { rate?: number; pitch?: number; priority?: boolean }
+): void {
+  if (!speechEnabled || !("speechSynthesis" in window)) return;
+
+  // Strip emojis for cleaner speech
+  const cleanText = text
+    .replace(
+      /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[✓✗⚠️]/gu,
+      ""
+    )
+    .trim();
+
+  if (!cleanText) return;
+
+  // Cancel previous speech if priority
+  if (options?.priority) {
+    speechSynthesis.cancel();
+  }
+
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  utterance.voice = speechVoice;
+  utterance.rate = options?.rate ?? 1.1;
+  utterance.pitch = options?.pitch ?? 1.0;
+  utterance.volume = 0.8;
+
+  speechSynthesis.speak(utterance);
+}
+
+/**
+ * Speak combo announcements - funny and encouraging!
+ */
+function speakCombo(streak: number): void {
+  if (streak < 2) return;
+
+  // Funny messages for different combo levels
+  const combo2 = [
+    "Nieźle!",
+    "O ho ho!",
+    "Lecimy!",
+    "Jest kontakt!",
+    "No proszę!",
+    "Działa!",
+    "Dobrze idzie!",
+    "Ładnie!",
+  ];
+  const combo3 = [
+    "Trzy! Kombo!",
+    "Trójka! Tak!",
+    "Heja!",
+    "Trzy z rzędu!",
+    "Rozpędzamy się!",
+    "Ooo tak!",
+    "No i git!",
+    "Trzy! Brawo!",
+  ];
+  const combo4 = [
+    "Cztery! Wow!",
+    "O rany!",
+    "Ale jazda!",
+    "Czwóreczka!",
+    "Petarda!",
+    "No no no!",
+    "Sztos!",
+    "Grubo!",
+  ];
+  const combo5 = [
+    "Super piątka!",
+    "Pięć! Moc!",
+    "Bum bum bum!",
+    "Piąteczka!",
+    "High five!",
+    "Pięć gwiazdek!",
+    "Mega!",
+    "Bomba!",
+  ];
+  const combo6 = [
+    "Sześć! Szał!",
+    "Nie do zatrzymania!",
+    "Rakieta!",
+    "Szóstka!",
+    "Hura!",
+    "Pędzi ninja!",
+    "Turbo mode!",
+    "Kosmicznie!",
+  ];
+  const combo7 = [
+    "Epicki! Siedem!",
+    "Mistrz!",
+    "Magia!",
+    "Siedem! Wow!",
+    "Czary mary!",
+    "Geniusz!",
+    "Szczęśliwa siódemka!",
+    "Ninja power!",
+  ];
+  const combo8 = [
+    "Osiem! Szok!",
+    "Fenomen!",
+    "Kosmos!",
+    "Ósemka!",
+    "Galaktyka!",
+    "Ekstremalne!",
+    "Niewiarygodne!",
+    "Oszałamiające!",
+  ];
+  const combo9 = [
+    "Dziewięć! Prawie!",
+    "Jeszcze jeden!",
+    "Dalej dalej!",
+    "Ostatnia prosta!",
+    "Do dziesiątki!",
+    "Jeszcze raz!",
+    "Tak blisko!",
+    "Finisz!",
+  ];
+  const combo10plus = [
+    "Legendarny!",
+    "Absolutny mistrz!",
+    "Nie do pokonania!",
+    "Mega ninja!",
+    "Matematyczny bóg!",
+    "Perfekcja!",
+    "Wszechmocny!",
+    "Król matmy!",
+    "Totalny szał!",
+    "Superbohater!",
+    "Niezwyciężony!",
+    "Mistrz wszechświata!",
+    "Złota seria!",
+    "Diamentowe combo!",
+  ];
+
+  let messages: string[];
+  let pitch = 1.0;
+  let rate = 1.2;
+
+  if (streak >= 10) {
+    messages = combo10plus;
+    pitch = 1.3;
+    rate = 1.0;
+  } else if (streak === 9) {
+    messages = combo9;
+    pitch = 1.25;
+  } else if (streak === 8) {
+    messages = combo8;
+    pitch = 1.2;
+  } else if (streak === 7) {
+    messages = combo7;
+    pitch = 1.15;
+  } else if (streak === 6) {
+    messages = combo6;
+    pitch = 1.1;
+  } else if (streak === 5) {
+    messages = combo5;
+    pitch = 1.05;
+  } else if (streak === 4) {
+    messages = combo4;
+  } else if (streak === 3) {
+    messages = combo3;
+  } else {
+    messages = combo2;
+  }
+
+  const text = messages[Math.floor(Math.random() * messages.length)];
+  speak(text, { pitch, rate, priority: true });
+}
+
+/**
+ * Toggle speech on/off
+ */
+function toggleSpeech(): boolean {
+  speechEnabled = !speechEnabled;
+  localStorage.setItem("ninjago-speech", String(speechEnabled));
+
+  if (speechEnabled) {
+    speak("Głos włączony", { priority: true });
+  } else {
+    speechSynthesis.cancel();
+  }
+
+  return speechEnabled;
+}
+
+/**
+ * Get speech enabled state
+ */
+function getSpeechEnabled(): boolean {
+  return speechEnabled;
+}
+
+// Initialize speech on load
+initSpeech();
+
 /**
  * Haptic feedback for mobile devices using Navigator Vibration API
  */
@@ -264,6 +499,7 @@ const difficultyButtons = $("#difficulty-buttons");
 const highScoreValue = $("#high-score-value");
 const startBtn = $("#start-btn");
 const muteBtn = $("#mute-btn");
+const speechBtn = $("#speech-btn");
 
 // Game screen
 const currentScore = $("#current-score");
@@ -526,6 +762,9 @@ function showComboEffect(streak: number, ninjaId: string): void {
   `;
 
   document.body.appendChild(combo);
+
+  // Speak combo announcement
+  speakCombo(streak);
 
   // Add screen border pulse for epic+
   if (streak >= 7) {
@@ -1072,6 +1311,9 @@ function showGameOver(): void {
 
   gameScreen.classList.add("hidden");
   gameoverScreen.classList.remove("hidden");
+
+  // Announce game over
+  speak("Koniec gry. Spróbuj ponownie!", { rate: 0.9, pitch: 0.8 });
 }
 
 /**
@@ -1087,6 +1329,12 @@ function showVictory(): void {
 
   gameScreen.classList.add("hidden");
   victoryScreen.classList.remove("hidden");
+
+  // Announce victory!
+  speak("Zwycięstwo! Pokonałeś Overlorda! Jesteś prawdziwym ninja!", {
+    rate: 1.0,
+    pitch: 1.2,
+  });
 }
 
 // ============================================================================
@@ -1648,6 +1896,17 @@ function updateMuteButton(): void {
 }
 
 /**
+ * Aktualizuje ikonę przycisku speech
+ */
+function updateSpeechButton(): void {
+  speechBtn.textContent = getSpeechEnabled() ? "🗣️" : "🤐";
+  speechBtn.setAttribute(
+    "aria-label",
+    getSpeechEnabled() ? "Wyłącz głos" : "Włącz głos"
+  );
+}
+
+/**
  * Obsługa przycisku mute
  */
 muteBtn.addEventListener("click", () => {
@@ -1658,8 +1917,17 @@ muteBtn.addEventListener("click", () => {
   }
 });
 
+/**
+ * Obsługa przycisku speech
+ */
+speechBtn.addEventListener("click", () => {
+  toggleSpeech();
+  updateSpeechButton();
+});
+
 function init(): void {
   updateMuteButton();
+  updateSpeechButton();
   showScreen("start");
 }
 
