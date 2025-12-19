@@ -94,6 +94,7 @@ describe("Math Problem Generation", () => {
         maxNumber: 10,
         operators: ["+"],
         description: "Tylko dodawanie",
+        disableIdleTimer: false,
       };
 
       const problem = generateProblem(easyDifficulty);

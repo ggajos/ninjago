@@ -30,6 +30,16 @@ export interface NinjaCharacter {
   avatar: string; // ścieżka do SVG
   encouragements: string[]; // zachęty po poprawnej odpowiedzi
   comforts: string[]; // pocieszenia po błędnej odpowiedzi
+  // Powiązanie z poziomem trudności i statystyki bojowe
+  difficultyId: string;
+  abilityName: string;
+  abilityDescription: string;
+  attackBonus: number; // bonus do obrażeń
+  defense: number; // redukcja otrzymywanych obrażeń
+  healthBonus: number; // bonus do max HP
+  healthRegen: number; // bonus do regeneracji HP
+  streakBonus: number; // bonus do obrażeń za streak
+  idleTimeBonus: number; // bonus czasu (ms) na odpowiedź
 }
 
 /** Konfiguracja poziomu trudności */
@@ -40,6 +50,7 @@ export interface DifficultyConfig {
   maxNumber: number;
   operators: MathOperator[];
   description: string;
+  disableIdleTimer: boolean;
 }
 
 /** Stan gry */
@@ -95,6 +106,16 @@ export const NINJAS: NinjaCharacter[] = [
       "Spróbuj jeszcze raz, wojowniku!",
       "Każdy ninja się uczy!",
     ],
+    // Bardzo trudny - Moc Ognia
+    difficultyId: "very-hard",
+    abilityName: "Moc Ognia",
+    abilityDescription: "+5 obrażeń, +1 bonus za serię",
+    attackBonus: 5,
+    defense: 0,
+    healthBonus: 0,
+    healthRegen: 0,
+    streakBonus: 1,
+    idleTimeBonus: 0,
   },
   {
     id: "jay",
@@ -114,6 +135,16 @@ export const NINJAS: NinjaCharacter[] = [
       "Spróbuj jeszcze! Będzie super!",
       "Nie martw się, dasz radę!",
     ],
+    // Trudny - Błyskawica
+    difficultyId: "hard",
+    abilityName: "Błyskawica",
+    abilityDescription: "+3s czasu, +1 bonus za serię",
+    attackBonus: 0,
+    defense: 0,
+    healthBonus: 0,
+    healthRegen: 0,
+    streakBonus: 1,
+    idleTimeBonus: 3000,
   },
   {
     id: "cole",
@@ -133,6 +164,16 @@ export const NINJAS: NinjaCharacter[] = [
       "Ziemia jest cierpliwa, Ty też bądź!",
       "Każda góra zaczyna się od kamyka!",
     ],
+    // Średni - Kamienna Zbroja
+    difficultyId: "medium",
+    abilityName: "Kamienna Zbroja",
+    abilityDescription: "+10 HP, -2 otrzymanych obrażeń",
+    attackBonus: 0,
+    defense: 2,
+    healthBonus: 10,
+    healthRegen: 0,
+    streakBonus: 0,
+    idleTimeBonus: 0,
   },
   {
     id: "zane",
@@ -152,6 +193,16 @@ export const NINJAS: NinjaCharacter[] = [
       "Spokojnie, oblicz jeszcze raz.",
       "Każdy błąd to nauka!",
     ],
+    // Łatwy - Lodowa Tarcza
+    difficultyId: "easy",
+    abilityName: "Lodowa Tarcza",
+    abilityDescription: "+1s czasu, +1 regeneracji HP",
+    attackBonus: 0,
+    defense: 0,
+    healthBonus: 0,
+    healthRegen: 1,
+    streakBonus: 0,
+    idleTimeBonus: 1000,
   },
   {
     id: "lloyd",
@@ -171,6 +222,16 @@ export const NINJAS: NinjaCharacter[] = [
       "Energia wraca! Spróbuj jeszcze!",
       "Wierzę w Ciebie, wojowniku!",
     ],
+    // Mistrz - Złota Moc (wszystkie bonusy!)
+    difficultyId: "master",
+    abilityName: "Złota Moc",
+    abilityDescription: "+3 obrażeń, +10 HP, +2 regen, +1 seria",
+    attackBonus: 3,
+    defense: 0,
+    healthBonus: 10,
+    healthRegen: 2,
+    streakBonus: 1,
+    idleTimeBonus: 0,
   },
   {
     id: "nya",
@@ -190,6 +251,16 @@ export const NINJAS: NinjaCharacter[] = [
       "Płyń dalej, nie poddawaj się!",
       "Każda kropla się liczy!",
     ],
+    // Bardzo łatwy - Fala Uzdrowienia (bez timera!)
+    difficultyId: "very-easy",
+    abilityName: "Fala Uzdrowienia",
+    abilityDescription: "+2 regeneracji HP, bez limitu czasu!",
+    attackBonus: 0,
+    defense: 0,
+    healthBonus: 0,
+    healthRegen: 2,
+    streakBonus: 0,
+    idleTimeBonus: 0,
   },
 ];
 
@@ -199,12 +270,22 @@ export const NINJAS: NinjaCharacter[] = [
 
 export const DIFFICULTIES: DifficultyConfig[] = [
   {
+    id: "very-easy",
+    name: "Very Easy",
+    namePolish: "Bardzo łatwy",
+    maxNumber: 5,
+    operators: ["+", "-"],
+    description: "Dodawanie i odejmowanie do 5",
+    disableIdleTimer: true,
+  },
+  {
     id: "easy",
     name: "Easy",
     namePolish: "Łatwy",
     maxNumber: 10,
     operators: ["+", "-"],
     description: "Dodawanie i odejmowanie do 10",
+    disableIdleTimer: false,
   },
   {
     id: "medium",
@@ -213,14 +294,25 @@ export const DIFFICULTIES: DifficultyConfig[] = [
     maxNumber: 20,
     operators: ["+", "-"],
     description: "Dodawanie i odejmowanie do 20",
+    disableIdleTimer: false,
   },
   {
     id: "hard",
     name: "Hard",
     namePolish: "Trudny",
+    maxNumber: 35,
+    operators: ["+", "-"],
+    description: "Dodawanie i odejmowanie do 35",
+    disableIdleTimer: false,
+  },
+  {
+    id: "very-hard",
+    name: "Very Hard",
+    namePolish: "Bardzo trudny",
     maxNumber: 50,
     operators: ["+", "-"],
     description: "Dodawanie i odejmowanie do 50",
+    disableIdleTimer: false,
   },
   {
     id: "master",
@@ -229,6 +321,7 @@ export const DIFFICULTIES: DifficultyConfig[] = [
     maxNumber: 100,
     operators: ["+", "-"],
     description: "Dodawanie i odejmowanie do 100",
+    disableIdleTimer: false,
   },
 ];
 
@@ -500,6 +593,13 @@ export function findDifficultyById(id: string): DifficultyConfig {
   return DIFFICULTIES.find((d) => d.id === id) || DIFFICULTIES[0];
 }
 
+/**
+ * Znajduje ninja przypisanego do danego poziomu trudności.
+ */
+export function getNinjaForDifficulty(difficultyId: string): NinjaCharacter {
+  return NINJAS.find((n) => n.difficultyId === difficultyId) || NINJAS[0];
+}
+
 // ============================================================================
 // FUNKCJE - STAN GRY
 // ============================================================================
@@ -510,15 +610,18 @@ export function findDifficultyById(id: string): DifficultyConfig {
 export function createInitialState(): GameState {
   const savedData = loadGameData();
 
-  const ninja = savedData
-    ? findNinjaById(savedData.selectedNinjaId)
-    : NINJAS[4]; // Lloyd jako domyślny
-
+  // Najpierw ustal poziom trudności
   const difficulty = savedData
     ? findDifficultyById(savedData.selectedDifficultyId)
-    : DIFFICULTIES[0]; // Łatwy jako domyślny
+    : DIFFICULTIES[0]; // Bardzo łatwy jako domyślny
+
+  // Ninja jest automatycznie przypisany do poziomu trudności
+  const ninja = getNinjaForDifficulty(difficulty.id);
 
   const highScore = savedData?.highScore || 0;
+
+  // Oblicz max HP z bonusem ninja
+  const maxHealth = COMBAT_CONFIG.PLAYER_MAX_HEALTH + ninja.healthBonus;
 
   return {
     currentNinja: ninja,
@@ -531,8 +634,8 @@ export function createInitialState(): GameState {
     correctAnswers: 0,
     isGameActive: false,
     // Combat system
-    playerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
-    maxPlayerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
+    playerHealth: maxHealth,
+    maxPlayerHealth: maxHealth,
     enemyHealth: getEnemyHealth(1),
     maxEnemyHealth: getEnemyHealth(1),
     isGameOver: false,
@@ -548,6 +651,10 @@ export function createInitialState(): GameState {
  */
 export function startGame(state: GameState): GameState {
   const initialEnemyHealth = getEnemyHealth(1);
+  // Oblicz max HP z bonusem ninja
+  const maxHealth =
+    COMBAT_CONFIG.PLAYER_MAX_HEALTH + state.currentNinja.healthBonus;
+
   return {
     ...state,
     score: 0,
@@ -557,8 +664,8 @@ export function startGame(state: GameState): GameState {
     correctAnswers: 0,
     isGameActive: true,
     // Reset combat
-    playerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
-    maxPlayerHealth: COMBAT_CONFIG.PLAYER_MAX_HEALTH,
+    playerHealth: maxHealth,
+    maxPlayerHealth: maxHealth,
     enemyHealth: initialEnemyHealth,
     maxEnemyHealth: initialEnemyHealth,
     isGameOver: false,
@@ -621,6 +728,7 @@ export function processAnswer(
 
   if (isCorrect) {
     // Bonus za serię: każda poprawna odpowiedź w serii daje +1 do mnożnika
+    // + bonus od ninja (streakBonus zwiększa obrażenia za każdy poziom serii)
     const streakBonus = Math.min(newStreak, 5); // max x5
     const points = 10 + streakBonus * 2;
     newScore += points;
@@ -632,15 +740,20 @@ export function processAnswer(
     }
 
     // ATAK GRACZA - zadajemy obrażenia wrogowi
+    // Bazowe obrażenia + bonus ninja + bonus za streak (z bonusem ninja)
+    const streakDamagePerLevel =
+      COMBAT_CONFIG.STREAK_BONUS_DAMAGE + ninja.streakBonus;
     damageDealt =
       COMBAT_CONFIG.PLAYER_ATTACK_DAMAGE +
-      streakBonus * COMBAT_CONFIG.STREAK_BONUS_DAMAGE;
+      ninja.attackBonus +
+      streakBonus * streakDamagePerLevel;
     newEnemyHealth = Math.max(0, newEnemyHealth - damageDealt);
 
-    // Regeneracja zdrowia gracza przy trafieniu
+    // Regeneracja zdrowia gracza przy trafieniu (z bonusem ninja)
+    const healthRegen = COMBAT_CONFIG.HEALTH_REGEN_ON_HIT + ninja.healthRegen;
     newPlayerHealth = Math.min(
       state.maxPlayerHealth,
-      newPlayerHealth + COMBAT_CONFIG.HEALTH_REGEN_ON_HIT
+      newPlayerHealth + healthRegen
     );
 
     // Sprawdź czy wróg pokonany
@@ -667,7 +780,11 @@ export function processAnswer(
     newStreak = 0;
     message = randomChoice(ninja.comforts);
 
-    damageTaken = COMBAT_CONFIG.ENEMY_ATTACK_DAMAGE;
+    // Obrażenia od wroga pomniejszone o obronę ninja
+    damageTaken = Math.max(
+      1,
+      COMBAT_CONFIG.ENEMY_ATTACK_DAMAGE - ninja.defense
+    );
     newPlayerHealth = Math.max(0, newPlayerHealth - damageTaken);
 
     // Sprawdź czy gracz pokonany
@@ -751,24 +868,38 @@ export function processIdleAttack(state: GameState): {
 }
 
 /**
- * Oblicza timeout na podstawie poziomu wroga.
+ * Oblicza timeout na podstawie poziomu wroga i bonusu ninja.
  * Od 15s (poziom 1) do 8s (finalny boss - poziom 10+)
+ * + bonus czasu od ninja (idleTimeBonus)
  */
-export function getIdleTimeout(level: number): number {
+export function getIdleTimeout(
+  level: number,
+  ninjaIdleBonus: number = 0
+): number {
   const maxLevel = ENEMY_TYPES.length + COMBAT_CONFIG.SKELETON_REPEATS - 1; // ~11
   const progress = Math.min(level - 1, maxLevel - 1) / (maxLevel - 1); // 0 do 1
   const range =
     COMBAT_CONFIG.IDLE_TIMEOUT_MAX_MS - COMBAT_CONFIG.IDLE_TIMEOUT_MIN_MS;
-  return Math.floor(COMBAT_CONFIG.IDLE_TIMEOUT_MAX_MS - progress * range);
+  const baseTimeout = Math.floor(
+    COMBAT_CONFIG.IDLE_TIMEOUT_MAX_MS - progress * range
+  );
+  return baseTimeout + ninjaIdleBonus;
 }
 
 /**
  * Sprawdza czy minął czas na idle attack.
+ * Jeśli timer jest wyłączony (disableIdleTimer), zawsze zwraca false.
  */
 export function shouldIdleAttack(state: GameState): boolean {
   if (!state.isGameActive || state.isGameOver) return false;
+  // Timer wyłączony dla poziomu "Bardzo łatwy"
+  if (state.difficulty.disableIdleTimer) return false;
+
   const elapsed = Date.now() - state.lastAnswerTime;
-  const timeout = getIdleTimeout(state.enemyLevel);
+  const timeout = getIdleTimeout(
+    state.enemyLevel,
+    state.currentNinja.idleTimeBonus
+  );
   return elapsed >= timeout;
 }
 
@@ -788,21 +919,31 @@ export function selectNinja(state: GameState, ninjaId: string): GameState {
 }
 
 /**
- * Zmienia poziom trudności.
+ * Zmienia poziom trudności i automatycznie wybiera przypisanego ninja.
  */
 export function selectDifficulty(
   state: GameState,
   difficultyId: string
 ): GameState {
   const difficulty = findDifficultyById(difficultyId);
+  // Automatycznie wybierz ninja przypisanego do tego poziomu trudności
+  const ninja = getNinjaForDifficulty(difficultyId);
+  // Oblicz nowe max HP z bonusem ninja
+  const maxHealth = COMBAT_CONFIG.PLAYER_MAX_HEALTH + ninja.healthBonus;
 
   saveGameData({
     highScore: state.highScore,
-    selectedNinjaId: state.currentNinja.id,
+    selectedNinjaId: ninja.id,
     selectedDifficultyId: difficulty.id,
   });
 
-  return { ...state, difficulty };
+  return {
+    ...state,
+    difficulty,
+    currentNinja: ninja,
+    maxPlayerHealth: maxHealth,
+    playerHealth: maxHealth,
+  };
 }
 
 /**

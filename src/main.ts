@@ -20,6 +20,7 @@ import {
   formatProblem,
   getEnemyType,
   getIdleTimeout,
+  getNinjaForDifficulty,
 } from "./game";
 import { playSound, getMuted, toggleMuted } from "./sounds";
 
@@ -164,7 +165,6 @@ const gameScreen = $("#game-screen");
 const gameoverScreen = $("#gameover-screen");
 
 // Start screen
-const ninjaGrid = $("#ninja-grid");
 const difficultyButtons = $("#difficulty-buttons");
 const highScoreValue = $("#high-score-value");
 const startBtn = $("#start-btn");
@@ -682,57 +682,47 @@ function createEnemyAvatarSVG(
 }
 
 /**
- * Renderuje siatkę wyboru ninja
- */
-function renderNinjaGrid(): void {
-  ninjaGrid.innerHTML = NINJAS.map(
-    (ninja) => `
-    <button 
-      class="ninja-card ${
-        ninja.id === gameState.currentNinja.id ? "selected" : ""
-      }"
-      data-ninja-id="${ninja.id}"
-      style="--ninja-color: ${ninja.color}"
-      title="${ninja.name} - ${ninja.element}"
-    >
-      <div class="ninja-card-avatar">
-        ${createNinjaAvatarSVG(ninja, 80)}
-      </div>
-      <div class="ninja-card-name">${ninja.name}</div>
-      <div class="ninja-card-element">${ninja.emoji} ${ninja.element}</div>
-    </button>
-  `
-  ).join("");
-}
-
-/**
- * Renderuje przyciski trudności
+ * Renderuje przyciski trudności z informacją o przypisanym ninja
  */
 function renderDifficultyButtons(): void {
-  difficultyButtons.innerHTML = DIFFICULTIES.map(
-    (diff) => `
+  difficultyButtons.innerHTML = DIFFICULTIES.map((diff) => {
+    const ninja = getNinjaForDifficulty(diff.id);
+    const isSelected = diff.id === gameState.difficulty.id;
+    const noTimerBadge = diff.disableIdleTimer
+      ? '<span class="no-timer-badge">∞ Bez limitu czasu!</span>'
+      : "";
+
+    return `
     <button 
-      class="difficulty-btn ${
-        diff.id === gameState.difficulty.id ? "selected" : ""
-      }"
+      class="difficulty-btn ${isSelected ? "selected" : ""}"
       data-difficulty-id="${diff.id}"
+      style="--ninja-color: ${ninja.color}"
     >
-      <span class="difficulty-name">${diff.namePolish}</span>
-      <span class="difficulty-desc">${diff.description}</span>
+      <div class="difficulty-ninja-avatar">
+        ${createNinjaAvatarSVG(ninja, 60)}
+      </div>
+      <div class="difficulty-info">
+        <span class="difficulty-name">${diff.namePolish}</span>
+        <span class="difficulty-ninja-name">${ninja.emoji} ${ninja.name}</span>
+        <span class="difficulty-desc">${diff.description}</span>
+        <span class="difficulty-ability">✨ ${ninja.abilityName}: ${
+      ninja.abilityDescription
+    }</span>
+        ${noTimerBadge}
+      </div>
     </button>
-  `
-  ).join("");
+  `;
+  }).join("");
 }
 
 /**
  * Renderuje ekran startowy
  */
 function renderStartScreen(): void {
-  renderNinjaGrid();
   renderDifficultyButtons();
   highScoreValue.textContent = String(gameState.highScore);
 
-  // Ustaw kolor motywu
+  // Ustaw kolor motywu na podstawie aktualnie wybranego ninja
   document.documentElement.style.setProperty(
     "--current-ninja-color",
     gameState.currentNinja.color
@@ -800,13 +790,17 @@ function updateHealthBars(): void {
 }
 
 /**
- * Oblicza aktualne obrażenia na podstawie streaka
+ * Oblicza aktualne obrażenia na podstawie streaka i bonusów ninja
  */
 function calculateCurrentDamage(): number {
+  const ninja = gameState.currentNinja;
   const streakBonus = Math.min(gameState.streak, 5);
+  const streakDamagePerLevel =
+    COMBAT_CONFIG.STREAK_BONUS_DAMAGE + ninja.streakBonus;
   return (
     COMBAT_CONFIG.PLAYER_ATTACK_DAMAGE +
-    streakBonus * COMBAT_CONFIG.STREAK_BONUS_DAMAGE
+    ninja.attackBonus +
+    streakBonus * streakDamagePerLevel
   );
 }
 
@@ -919,6 +913,18 @@ function showVictory(): void {
 function startIdleTimer(): void {
   stopIdleTimer();
 
+  // Nie uruchamiaj timera jeśli jest wyłączony dla tego poziomu trudności
+  if (gameState.difficulty.disableIdleTimer) {
+    // Ukryj pasek timera
+    const idleTimer = document.getElementById("idle-timer");
+    if (idleTimer) idleTimer.style.display = "none";
+    return;
+  }
+
+  // Pokaż pasek timera
+  const idleTimer = document.getElementById("idle-timer");
+  if (idleTimer) idleTimer.style.display = "block";
+
   // Check every 100ms for idle attack
   idleCheckInterval = window.setInterval(() => {
     if (shouldIdleAttack(gameState)) {
@@ -944,13 +950,20 @@ function stopIdleTimer(): void {
 }
 
 function updateIdleTimerBar(): void {
-  if (!gameState.isGameActive || gameState.isGameOver) {
+  if (
+    !gameState.isGameActive ||
+    gameState.isGameOver ||
+    gameState.difficulty.disableIdleTimer
+  ) {
     idleTimerFill.style.width = "100%";
     return;
   }
 
   const elapsed = Date.now() - gameState.lastAnswerTime;
-  const timeout = getIdleTimeout(gameState.enemyLevel);
+  const timeout = getIdleTimeout(
+    gameState.enemyLevel,
+    gameState.currentNinja.idleTimeBonus
+  );
   const percent = Math.max(0, 100 - (elapsed / timeout) * 100);
   idleTimerFill.style.width = `${percent}%`;
 
@@ -1019,26 +1032,7 @@ function showScreen(screen: "start" | "game"): void {
 // ============================================================================
 
 /**
- * Obsługa wyboru ninja
- */
-ninjaGrid.addEventListener("click", (e) => {
-  const target = e.target as HTMLElement;
-  const card = target.closest<HTMLElement>(".ninja-card");
-  if (!card) return;
-
-  const ninjaId = card.dataset.ninjaId;
-  if (ninjaId) {
-    gameState = selectNinja(gameState, ninjaId);
-    renderNinjaGrid();
-    document.documentElement.style.setProperty(
-      "--current-ninja-color",
-      gameState.currentNinja.color
-    );
-  }
-});
-
-/**
- * Obsługa wyboru trudności
+ * Obsługa wyboru trudności - automatycznie wybiera przypisanego ninja
  */
 difficultyButtons.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
@@ -1049,6 +1043,11 @@ difficultyButtons.addEventListener("click", (e) => {
   if (difficultyId) {
     gameState = selectDifficulty(gameState, difficultyId);
     renderDifficultyButtons();
+    // Aktualizuj kolor motywu na podstawie nowego ninja
+    document.documentElement.style.setProperty(
+      "--current-ninja-color",
+      gameState.currentNinja.color
+    );
   }
 });
 

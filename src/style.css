@@ -291,7 +291,7 @@ h2 {
 }
 
 /* ============================================================================
-   DIFFICULTY SELECTION
+   DIFFICULTY SELECTION (with integrated ninja selection)
    ============================================================================ */
 
 .difficulty-selection {
@@ -300,44 +300,87 @@ h2 {
 }
 
 .difficulty-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-md);
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .difficulty-btn {
   background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-sm);
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
   padding: var(--space-md);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  min-width: 140px;
+  gap: var(--space-md);
+  text-align: left;
 }
 
 .difficulty-btn:hover {
   background: rgba(255, 255, 255, 0.1);
-  border-color: var(--current-ninja-color);
+  border-color: var(--ninja-color, var(--current-ninja-color));
+  transform: scale(1.02);
 }
 
 .difficulty-btn.selected {
-  background: var(--current-ninja-color);
-  border-color: var(--current-ninja-color);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  border-color: var(--ninja-color, var(--current-ninja-color));
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2), 0 0 40px var(--ninja-color, var(--current-ninja-color));
+}
+
+.difficulty-ninja-avatar {
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.difficulty-btn:hover .difficulty-ninja-avatar {
+  transform: rotate(-5deg) scale(1.1);
+}
+
+.difficulty-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
 }
 
 .difficulty-name {
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 1.1rem;
   color: var(--text-primary);
 }
 
+.difficulty-ninja-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ninja-color, var(--current-ninja-color));
+}
+
 .difficulty-desc {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.difficulty-ability {
+  font-size: 0.75rem;
+  color: var(--accent-gold);
+  font-style: italic;
+}
+
+.no-timer-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #4CAF50, #2E7D32);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
 }
 
 .difficulty-btn.selected .difficulty-desc {
@@ -672,21 +715,30 @@ h2 {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-md));
   }
   
-  .ninja-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  .ninja-card {
-    padding: var(--space-sm);
-  }
-  
   .difficulty-buttons {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
   }
   
   .difficulty-btn {
-    min-width: 100%;
+    padding: var(--space-sm);
+  }
+  
+  .difficulty-ninja-avatar svg {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .difficulty-name {
+    font-size: 1rem;
+  }
+  
+  .difficulty-ninja-name {
+    font-size: 0.85rem;
+  }
+  
+  .difficulty-desc,
+  .difficulty-ability {
+    font-size: 0.7rem;
   }
   
   .game-header {
