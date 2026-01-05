@@ -75,6 +75,7 @@ export interface GameState {
   // Enemy progression
   enemyLevel: number; // poziom wroga (1 = szkielet, 2+ = bossy)
   enemiesDefeated: number; // licznik pokonanych wrogów
+  storyPath: StoryPath; // aktualna ścieżka fabularna
 }
 
 /** Dane zapisywane w localStorage */
@@ -373,6 +374,7 @@ export interface EnemyType {
 }
 
 export const ENEMY_TYPES: EnemyType[] = [
+  // Wrogowie regularni (losowani na początku)
   {
     id: "skeleton",
     name: "Szkielet",
@@ -389,6 +391,23 @@ export const ENEMY_TYPES: EnemyType[] = [
     scale: 1.1,
     isBoss: false,
   },
+  {
+    id: "skeleton-archer",
+    name: "Szkielet Łucznik",
+    emoji: "🏹",
+    color: "#6a2090",
+    scale: 1.0,
+    isBoss: false,
+  },
+  {
+    id: "shadow-scout",
+    name: "Zwiadowca Cienia",
+    emoji: "👤",
+    color: "#2a2040",
+    scale: 1.1,
+    isBoss: false,
+  },
+  // Bossy
   {
     id: "stone-warrior",
     name: "Kamienny Wojownik",
@@ -437,6 +456,32 @@ export const ENEMY_TYPES: EnemyType[] = [
     scale: 1.7,
     isBoss: true,
   },
+  // Mini-bossy (dodatkowi przeciwnicy między głównymi bossami)
+  {
+    id: "ice-samurai",
+    name: "Lodowy Samuraj",
+    emoji: "❄️",
+    color: "#87ceeb",
+    scale: 1.25,
+    isBoss: true,
+  },
+  {
+    id: "shadow-master",
+    name: "Mistrz Cienia",
+    emoji: "🌑",
+    color: "#1a1a2e",
+    scale: 1.35,
+    isBoss: true,
+  },
+  {
+    id: "pyro-viper",
+    name: "Ognisty Wąż",
+    emoji: "🔥",
+    color: "#ff4500",
+    scale: 1.45,
+    isBoss: true,
+  },
+  // Final boss
   {
     id: "overlord",
     name: "Overlord",
@@ -447,21 +492,119 @@ export const ENEMY_TYPES: EnemyType[] = [
   },
 ];
 
+// ============================================================================
+// SYSTEM ŚCIEŻEK FABULARNYCH
+// ============================================================================
+
+/** Identyfikatory ścieżek fabularnych */
+export type StoryPathId = "serpentine" | "tech" | "shadow" | "classic";
+
+/** Ścieżka fabularna - kolejność bossów */
+export interface StoryPath {
+  id: StoryPathId;
+  name: string;
+  description: string;
+  bossOrder: string[]; // id bossów w kolejności (bez Overlorda - zawsze na końcu)
+}
+
+/** Dostępne ścieżki fabularne */
+export const STORY_PATHS: StoryPath[] = [
+  {
+    id: "serpentine",
+    name: "Inwazja Serpentynów",
+    description: "Węże atakują Ninjago!",
+    bossOrder: [
+      "serpentine",
+      "pyro-viper",
+      "stone-warrior",
+      "shadow-master",
+      "oni",
+      "dragon-hunter",
+    ],
+  },
+  {
+    id: "tech",
+    name: "Cyberprzejęcie",
+    description: "Nindroids przejęły kontrolę!",
+    bossOrder: [
+      "nindroid",
+      "ice-samurai",
+      "ghost",
+      "shadow-master",
+      "stone-warrior",
+      "dragon-hunter",
+    ],
+  },
+  {
+    id: "shadow",
+    name: "Cienie z Otchłani",
+    description: "Mroczne moce budzą się...",
+    bossOrder: [
+      "ghost",
+      "shadow-master",
+      "oni",
+      "ice-samurai",
+      "serpentine",
+      "dragon-hunter",
+    ],
+  },
+  {
+    id: "classic",
+    name: "Klasyczna Przygoda",
+    description: "Tradycyjna podróż ninja",
+    bossOrder: [
+      "stone-warrior",
+      "serpentine",
+      "nindroid",
+      "ghost",
+      "oni",
+      "dragon-hunter",
+    ],
+  },
+];
+
+/** Losuje ścieżkę fabularną */
+export function getRandomStoryPath(): StoryPath {
+  const index = Math.floor(Math.random() * STORY_PATHS.length);
+  return STORY_PATHS[index];
+}
+
+/** Znajduje wroga po ID */
+export function findEnemyById(id: string): EnemyType | undefined {
+  return ENEMY_TYPES.find((e) => e.id === id);
+}
+
+/** Wrogowie regularni (nie-bossy) */
+const REGULAR_ENEMIES = ENEMY_TYPES.filter((e) => !e.isBoss);
+
 /**
- * Zwraca typ wroga na podstawie poziomu
+ * Zwraca typ wroga na podstawie poziomu i ścieżki fabularnej
  */
-export function getEnemyType(level: number): EnemyType {
-  // Poziomy 1-3: losowe szkielety (powtarzają się)
-  if (level <= COMBAT_CONFIG.SKELETON_REPEATS) {
-    return Math.random() < 0.7 ? ENEMY_TYPES[0] : ENEMY_TYPES[1];
+export function getEnemyType(level: number, storyPath?: StoryPath): EnemyType {
+  // Poziomy 1-4: losowi wrogowie regularni (większa różnorodność)
+  if (level <= COMBAT_CONFIG.SKELETON_REPEATS + 1) {
+    const randomIndex = Math.floor(Math.random() * REGULAR_ENEMIES.length);
+    return REGULAR_ENEMIES[randomIndex];
   }
 
-  // Od poziomu 4: kolejni bossi
-  const bossIndex = Math.min(
-    level - COMBAT_CONFIG.SKELETON_REPEATS + 1,
-    ENEMY_TYPES.length - 1
-  );
-  return ENEMY_TYPES[bossIndex];
+  // Bez ścieżki - klasyczna kolejność (fallback)
+  if (!storyPath) {
+    const classicPath = STORY_PATHS.find((p) => p.id === "classic")!;
+    storyPath = classicPath;
+  }
+
+  // Poziom boss w ścieżce (poziom 5 = boss 0, poziom 6 = boss 1, itd.)
+  const bossIndex = level - COMBAT_CONFIG.SKELETON_REPEATS - 2;
+
+  // Ostatni boss (Overlord) - zawsze na końcu
+  if (bossIndex >= storyPath.bossOrder.length) {
+    return findEnemyById("overlord")!;
+  }
+
+  // Boss ze ścieżki
+  const bossId = storyPath.bossOrder[bossIndex];
+  const boss = findEnemyById(bossId);
+  return boss || findEnemyById("overlord")!;
 }
 
 /**
@@ -780,6 +923,9 @@ export function createInitialState(): GameState {
   // Oblicz max HP z bonusem ninja
   const maxHealth = COMBAT_CONFIG.PLAYER_MAX_HEALTH + ninja.healthBonus;
 
+  // Losuj ścieżkę fabularną na początek gry
+  const storyPath = getRandomStoryPath();
+
   return {
     currentNinja: ninja,
     score: 0,
@@ -800,6 +946,7 @@ export function createInitialState(): GameState {
     // Enemy progression
     enemyLevel: 1,
     enemiesDefeated: 0,
+    storyPath,
   };
 }
 
@@ -811,6 +958,9 @@ export function startGame(state: GameState): GameState {
   // Oblicz max HP z bonusem ninja
   const maxHealth =
     COMBAT_CONFIG.PLAYER_MAX_HEALTH + state.currentNinja.healthBonus;
+
+  // Nowa losowa ścieżka fabularna na każdą grę
+  const storyPath = getRandomStoryPath();
 
   return {
     ...state,
@@ -830,6 +980,7 @@ export function startGame(state: GameState): GameState {
     // Reset enemy progression
     enemyLevel: 1,
     enemiesDefeated: 0,
+    storyPath,
   };
 }
 
@@ -925,7 +1076,7 @@ export function processAnswer(
       newMaxEnemyHealth = nextEnemyHealth;
 
       // Bonus punktów za pokonanie wroga (więcej za bossów)
-      const enemy = getEnemyType(state.enemyLevel);
+      const enemy = getEnemyType(state.enemyLevel, state.storyPath);
       const bossBonus = enemy.isBoss ? 100 : 50;
       newScore += bossBonus;
       if (newScore > newHighScore) {
@@ -988,8 +1139,9 @@ export function processAnswer(
     damageTaken,
     // Zwróć null jeśli pokonano Overlorda (ostatniego bossa) - koniec gry!
     newEnemyType:
-      enemyDefeated && getEnemyType(state.enemyLevel).id !== "overlord"
-        ? getEnemyType(newEnemyLevel)
+      enemyDefeated &&
+      getEnemyType(state.enemyLevel, state.storyPath).id !== "overlord"
+        ? getEnemyType(newEnemyLevel, state.storyPath)
         : null,
   };
 }

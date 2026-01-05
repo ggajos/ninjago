@@ -405,6 +405,20 @@ const ENEMY_BACKGROUNDS: Record<string, BackgroundConfig> = {
     ambientColor: "#5a1090",
     floatingElements: ["⚔️", "🗡️", "💀", "🛡️"],
   },
+  "skeleton-archer": {
+    gradient:
+      "linear-gradient(180deg, #250a40 0%, #451b6e 30%, #351250 70%, #150820 100%)",
+    particles: "🏹",
+    ambientColor: "#6a2090",
+    floatingElements: ["🏹", "💀", "🎯", "🦴"],
+  },
+  "shadow-scout": {
+    gradient:
+      "linear-gradient(180deg, #0a0a15 0%, #1a1830 30%, #101020 70%, #050508 100%)",
+    particles: "👤",
+    ambientColor: "#2a2040",
+    floatingElements: ["👤", "🌑", "🗡️", "👁️"],
+  },
   "stone-warrior": {
     gradient:
       "linear-gradient(180deg, #2a2218 0%, #4a3c2e 30%, #3b3025 70%, #1a1510 100%)",
@@ -447,6 +461,27 @@ const ENEMY_BACKGROUNDS: Record<string, BackgroundConfig> = {
     ambientColor: "#8b4513",
     floatingElements: ["🏹", "🐉", "⚔️", "🎯"],
   },
+  "ice-samurai": {
+    gradient:
+      "linear-gradient(180deg, #0a1a2a 0%, #1b3e5e 30%, #0d2a3a 70%, #051018 100%)",
+    particles: "❄️",
+    ambientColor: "#87ceeb",
+    floatingElements: ["❄️", "🧊", "⚔️", "🌨️"],
+  },
+  "shadow-master": {
+    gradient:
+      "linear-gradient(180deg, #050510 0%, #0a0a1a 30%, #080815 70%, #020205 100%)",
+    particles: "🌑",
+    ambientColor: "#1a1a2e",
+    floatingElements: ["🌑", "👤", "🕳️", "✨"],
+  },
+  "pyro-viper": {
+    gradient:
+      "linear-gradient(180deg, #2a0a00 0%, #4e1b08 30%, #331005 70%, #1a0800 100%)",
+    particles: "🔥",
+    ambientColor: "#ff4500",
+    floatingElements: ["🔥", "🐍", "🌋", "💥"],
+  },
   overlord: {
     gradient:
       "linear-gradient(180deg, #0d0015 0%, #1a0033 30%, #0d001a 70%, #050008 100%)",
@@ -456,36 +491,101 @@ const ENEMY_BACKGROUNDS: Record<string, BackgroundConfig> = {
   },
 };
 
-const BOSS_STORIES: Record<string, { emoji: string; text: string }> = {
+const BOSS_STORIES: Record<string, { emoji: string; texts: string[] }> = {
   "stone-warrior": {
     emoji: "🗿",
-    text: "UWAGA! Kamienny Wojownik się zbliża! Ten starożytny strażnik jest niezniszczalny... prawie. Twoja inteligencja jest twoją bronią!",
+    texts: [
+      "UWAGA! Kamienny Wojownik się zbliża! Ten starożytny strażnik jest niezniszczalny... prawie. Twoja inteligencja jest twoją bronią!",
+      "Ziemia drży! Kamienny Wojownik budzi się z tysiącletniego snu! Tylko matematyka może przebić jego kamienną zbroję!",
+      "KRACH! Kamienny kolos blokuje ci drogę! Jego pięści są cięższe niż skały, ale twój umysł jest szybszy!",
+    ],
   },
   serpentine: {
     emoji: "🐍",
-    text: "Sssserpentyn wyłania się z cieni! Ten podstępny wąż hypnotyzuje swoje ofiary. Nie daj się zahipnotyzować - skup się na liczbach!",
+    texts: [
+      "Sssserpentyn wyłania się z cieni! Ten podstępny wąż hypnotyzuje swoje ofiary. Nie daj się zahipnotyzować - skup się na liczbach!",
+      "Syk rozlega się w ciemnościach... Serpentyn czai się! Jego jad jest śmiertelny, ale twoja wiedza jest silniejsza!",
+      "UWAGA NA OGON! Serpentyn atakuje znienacka! Pokaż mu, że ninja nigdy nie daje się zaskoczyć!",
+    ],
   },
   nindroid: {
     emoji: "🤖",
-    text: "ALERT SYSTEMU! Nindroid aktywowany. Ta maszyna wojenna oblicza 1000 działań na sekundę. Czy nadążysz?",
+    texts: [
+      "ALERT SYSTEMU! Nindroid aktywowany. Ta maszyna wojenna oblicza 1000 działań na sekundę. Czy nadążysz?",
+      "BIP BIP! Nindroid skanuje cel... WYKRYTO NINJA! Czy twój mózg jest szybszy niż jego procesory?",
+      "SYSTEM BOJOWY ONLINE! Nindroid uruchamia protokół eliminacji. Czas pokazać, że człowiek > maszyna!",
+    ],
   },
   ghost: {
     emoji: "👻",
-    text: "Temperatura spada... Duch z Królestwa Umarłych nawiedza arenę! Tylko czysty umysł może go pokonać!",
+    texts: [
+      "Temperatura spada... Duch z Królestwa Umarłych nawiedza arenę! Tylko czysty umysł może go pokonać!",
+      "Buuuu! Zjawa przenika przez ściany! Ten duch jest nieuchwytny... ale liczby go zranią!",
+      "Lodowaty wiatr... Duch szuka ofiary! Nie bój się - skup się na zadaniach i przepędź go!",
+    ],
   },
   oni: {
     emoji: "👹",
-    text: "DRŻYJ ŚMIERTELNIKU! Oni - demon z innego wymiaru - żąda twojej duszy! Pokaż mu moc ninja!",
+    texts: [
+      "DRŻYJ ŚMIERTELNIKU! Oni - demon z innego wymiaru - żąda twojej duszy! Pokaż mu moc ninja!",
+      "HUAHAHAHA! Oni przybywa z Królestwa Ciemności! Jego gniew jest straszliwy, ale ty jesteś ninja!",
+      "Powietrze gęstnieje od zła... Oni nadchodzi! Tylko prawdziwy wojownik może stawić mu czoła!",
+    ],
   },
   "dragon-hunter": {
     emoji: "🏹",
-    text: "Łowca Smoków namierzył nowy cel... CIEBIE! Ten bezwzględny myśliwy nigdy nie chybia. Bądź szybszy!",
+    texts: [
+      "Łowca Smoków namierzył nowy cel... CIEBIE! Ten bezwzględny myśliwy nigdy nie chybia. Bądź szybszy!",
+      "GOTUJ SIĘ! Łowca Smoków napina łuk! Każda sekunda zwłoki to strzała lecąca w twoją stronę!",
+      "Oczy myśliwego świecą w mroku... Łowca Smoków cię obserwuje! Pokaż mu, kto tu jest prawdziwym łowcą!",
+    ],
+  },
+  "ice-samurai": {
+    emoji: "❄️",
+    texts: [
+      "Mróz pokrywa arenę! Lodowy Samuraj przybywa z zamarzniętych pustkowi! Jego miecz jest zimny jak śmierć!",
+      "KRYSZTAŁY LODU! Lodowy Samuraj zamraża wszystko na swojej drodze! Rozgrzej umysł i walcz!",
+      "Temperatura spada gwałtownie... Lodowy wojownik nadchodzi! Twoja gorąca głowa jest twoją bronią!",
+    ],
+  },
+  "shadow-master": {
+    emoji: "🌑",
+    texts: [
+      "Cienie gęstnieją... Mistrz Cienia materializuje się z mroku! W ciemności jest niewidzialny!",
+      "ZNIKAM I POJAWIAM SIĘ! Mistrz Cienia to iluzjonista zła! Skup wzrok na liczbach, nie na cieniach!",
+      "Światło gaśnie... Mistrz Cienia przejmuje kontrolę! Tylko błyskotliwy umysł rozświetli tę ciemność!",
+    ],
+  },
+  "pyro-viper": {
+    emoji: "🔥",
+    texts: [
+      "PŁOMIENIE! Ognisty Wąż zieje żarem! Ten serpentyn jest zrodzony z lawy wulkanu!",
+      "Gorąco robi się nieznośnie! Pyro Viper atakuje ogniem! Zachowaj zimną krew!",
+      "SSSYK PŁOMIENI! Ognisty Wąż pali wszystko na swojej drodze! Pokaż mu, że twój umysł nie spłonie!",
+    ],
   },
   overlord: {
     emoji: "😈",
-    text: "⚠️ FINAŁOWA BITWA ⚠️\n\nOVERLORD - Władca Ciemności - powstał! To jest TO. Ostateczne starcie dobra ze złem. Cała nadzieja Ninjago spoczywa na TOBIE! 🌟",
+    texts: [
+      "⚠️ FINAŁOWA BITWA ⚠️\n\nOVERLORD - Władca Ciemności - powstał! To jest TO. Ostateczne starcie dobra ze złem. Cała nadzieja Ninjago spoczywa na TOBIE! 🌟",
+      "⚠️ OSTATECZNA KONFRONTACJA ⚠️\n\nOVERLORD powrócił potężniejszy niż kiedykolwiek! Los całego Ninjago zależy od twoich obliczeń! Bądź najlepszą wersją siebie! 🌟",
+      "⚠️ DECYDUJĄCA WALKA ⚠️\n\nOVERLORD - Prastara Ciemność - budzi się! To moment, na który trenowałeś całe życie! NIE ZAWIEDŹ NINJAGO! 🌟",
+    ],
   },
 };
+
+/** Losuje tekst historii dla bossa */
+function getRandomBossStory(
+  bossId: string
+): { emoji: string; text: string } | null {
+  const storyData = BOSS_STORIES[bossId];
+  if (!storyData) return null;
+  const randomIndex = Math.floor(Math.random() * storyData.texts.length);
+  return {
+    emoji: storyData.emoji,
+    text: storyData.texts[randomIndex],
+  };
+}
 
 // ============================================================================
 // ELEMENTY DOM
@@ -823,7 +923,7 @@ function showLevelUpEffect(bossName: string = "MISTRZ"): void {
  * Dramatyczne wejście bossa
  */
 function showBossEntrance(enemy: EnemyType): void {
-  const storyData = BOSS_STORIES[enemy.id];
+  const storyData = getRandomBossStory(enemy.id);
   if (storyData) {
     // Najpierw pokaż historię
     showStoryOverlay(storyData, () => {
@@ -1140,7 +1240,10 @@ function renderGameScreen(): void {
   updateDamageDisplay();
 
   ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
-  const currentEnemyType = getEnemyType(gameState.enemyLevel);
+  const currentEnemyType = getEnemyType(
+    gameState.enemyLevel,
+    gameState.storyPath
+  );
   enemyAvatar.innerHTML = createEnemyAvatarSVG(currentEnemyType, 120);
   updateEnemyNameDisplay(currentEnemyType);
 
@@ -1736,7 +1839,10 @@ function handleSubmit(): void {
     // Spawn nowego wroga z animacją
     if (result.newEnemyType) {
       setTimeout(() => {
-        const newEnemyType = getEnemyType(gameState.enemyLevel);
+        const newEnemyType = getEnemyType(
+          gameState.enemyLevel,
+          gameState.storyPath
+        );
 
         // Change epic background for new enemy!
         changeBackground(newEnemyType.id);
@@ -1940,7 +2046,10 @@ restartBtn.addEventListener("click", () => {
     gameState.currentNinja.color
   );
   updateHealthBars();
-  const initialEnemyType = getEnemyType(gameState.enemyLevel);
+  const initialEnemyType = getEnemyType(
+    gameState.enemyLevel,
+    gameState.storyPath
+  );
   enemyAvatar.innerHTML = createEnemyAvatarSVG(initialEnemyType, 120);
   updateEnemyNameDisplay(initialEnemyType);
 
@@ -1983,7 +2092,10 @@ victoryRestartBtn.addEventListener("click", () => {
     gameState.currentNinja.color
   );
   updateHealthBars();
-  const initialEnemyType = getEnemyType(gameState.enemyLevel);
+  const initialEnemyType = getEnemyType(
+    gameState.enemyLevel,
+    gameState.storyPath
+  );
   enemyAvatar.innerHTML = createEnemyAvatarSVG(initialEnemyType, 120);
   updateEnemyNameDisplay(initialEnemyType);
 
