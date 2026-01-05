@@ -10,7 +10,7 @@
 // ============================================================================
 
 /** Operacje matematyczne dostępne w grze */
-export type MathOperator = "+" | "-";
+export type MathOperator = "+" | "-" | "*" | "/";
 
 /** Problem matematyczny do rozwiązania */
 export interface MathProblem {
@@ -51,6 +51,7 @@ export interface DifficultyConfig {
   operators: MathOperator[];
   description: string;
   disableIdleTimer: boolean;
+  isCustom?: boolean; // czy to tryb niestandardowy
 }
 
 /** Stan gry */
@@ -81,6 +82,14 @@ export interface SavedData {
   highScore: number;
   selectedNinjaId: string;
   selectedDifficultyId: string;
+  customDifficulty?: CustomDifficultySettings;
+}
+
+/** Ustawienia niestandardowego poziomu trudności */
+export interface CustomDifficultySettings {
+  maxNumber: number;
+  operators: MathOperator[];
+  disableIdleTimer: boolean;
 }
 
 // ============================================================================
@@ -315,13 +324,14 @@ export const DIFFICULTIES: DifficultyConfig[] = [
     disableIdleTimer: false,
   },
   {
-    id: "master",
-    name: "Master",
-    namePolish: "Mistrz",
-    maxNumber: 100,
+    id: "custom",
+    name: "Custom",
+    namePolish: "Własny",
+    maxNumber: 10,
     operators: ["+", "-"],
-    description: "Dodawanie i odejmowanie do 100",
+    description: "Dostosuj ustawienia",
     disableIdleTimer: false,
+    isCustom: true,
   },
 ];
 
@@ -522,15 +532,61 @@ export function generateSubtractionProblem(maxNumber: number): MathProblem {
 }
 
 /**
+ * Generuje zadanie mnożenia.
+ * Oba czynniki są z zakresu [1, sqrt(maxNumber)] dla przyjaznych wyników.
+ * Dla dzieci: małe liczby (tabliczka mnożenia do 10x10).
+ */
+export function generateMultiplicationProblem(maxNumber: number): MathProblem {
+  // Maksymalny czynnik to ~pierwiastek z maxNumber, ale nie więcej niż 10
+  const maxFactor = Math.min(10, Math.floor(Math.sqrt(maxNumber)));
+  const operand1 = randomInt(Math.max(1, maxFactor));
+  const operand2 = randomInt(Math.max(1, maxFactor));
+
+  return {
+    operand1,
+    operand2,
+    operator: "*",
+    correctAnswer: operand1 * operand2,
+  };
+}
+
+/**
+ * Generuje zadanie dzielenia.
+ * Wynik jest zawsze liczbą całkowitą > 0 (dzielenie bez reszty).
+ * Generujemy iloczyn, a potem dzielimy - gwarantuje wynik całkowity.
+ */
+export function generateDivisionProblem(maxNumber: number): MathProblem {
+  // Maksymalny dzielnik/wynik to ~pierwiastek z maxNumber, ale nie więcej niż 10
+  const maxFactor = Math.min(10, Math.floor(Math.sqrt(maxNumber)));
+  const divisor = randomInt(Math.max(1, maxFactor)); // dzielnik
+  const quotient = randomInt(Math.max(1, maxFactor)); // wynik
+  const dividend = divisor * quotient; // dzielna = dzielnik * wynik
+
+  return {
+    operand1: dividend,
+    operand2: divisor,
+    operator: "/",
+    correctAnswer: quotient,
+  };
+}
+
+/**
  * Generuje zadanie zgodne z konfiguracją trudności.
  */
 export function generateProblem(difficulty: DifficultyConfig): MathProblem {
   const operator = randomChoice(difficulty.operators);
 
-  if (operator === "+") {
-    return generateAdditionProblem(difficulty.maxNumber);
-  } else {
-    return generateSubtractionProblem(difficulty.maxNumber);
+  switch (operator) {
+    case "+":
+      return generateAdditionProblem(difficulty.maxNumber);
+    case "-":
+      return generateSubtractionProblem(difficulty.maxNumber);
+    case "*":
+      return generateMultiplicationProblem(difficulty.maxNumber);
+    case "/":
+      return generateDivisionProblem(difficulty.maxNumber);
+    default:
+      return generateAdditionProblem(difficulty.maxNumber);
   }
 }
 
@@ -575,9 +631,13 @@ export function checkAnswer(problem: MathProblem, userAnswer: number): boolean {
 
 /**
  * Formatuje zadanie jako string do wyświetlenia.
+ * Używa znaków przyjaznych dla dzieci (× zamiast *, ÷ zamiast /).
  */
 export function formatProblem(problem: MathProblem): string {
-  return `${problem.operand1} ${problem.operator} ${problem.operand2} = ?`;
+  let operatorSymbol: string = problem.operator;
+  if (problem.operator === "*") operatorSymbol = "×";
+  if (problem.operator === "/") operatorSymbol = "÷";
+  return `${problem.operand1} ${operatorSymbol} ${problem.operand2} = ?`;
 }
 
 // ============================================================================
@@ -626,9 +686,74 @@ export function findDifficultyById(id: string): DifficultyConfig {
 }
 
 /**
+ * Aktualizuje ustawienia trybu Custom.
+ * Zwraca nową konfigurację trudności z zastosowanymi ustawieniami.
+ */
+export function updateCustomDifficulty(
+  settings: CustomDifficultySettings
+): DifficultyConfig {
+  const customDiff = DIFFICULTIES.find((d) => d.id === "custom");
+  if (!customDiff) {
+    throw new Error("Custom difficulty not found");
+  }
+
+  // Aktualizuj referencję w tablicy DIFFICULTIES
+  customDiff.maxNumber = settings.maxNumber;
+  customDiff.operators = settings.operators;
+  customDiff.disableIdleTimer = settings.disableIdleTimer;
+  customDiff.description = generateCustomDescription(settings);
+
+  return customDiff;
+}
+
+/**
+ * Generuje opis dla trybu Custom na podstawie ustawień.
+ */
+function generateCustomDescription(settings: CustomDifficultySettings): string {
+  const ops = settings.operators
+    .map((op) => {
+      switch (op) {
+        case "+":
+          return "dodawanie";
+        case "-":
+          return "odejmowanie";
+        case "*":
+          return "mnożenie";
+        case "/":
+          return "dzielenie";
+        default:
+          return op;
+      }
+    })
+    .join(", ");
+  const timer = settings.disableIdleTimer ? ", bez timera" : "";
+  return `${ops} do ${settings.maxNumber}${timer}`;
+}
+
+/**
+ * Pobiera aktualne ustawienia trybu Custom.
+ */
+export function getCustomDifficultySettings(): CustomDifficultySettings {
+  const savedData = loadGameData();
+  if (savedData?.customDifficulty) {
+    return savedData.customDifficulty;
+  }
+  // Domyślne ustawienia
+  return {
+    maxNumber: 10,
+    operators: ["+", "-"],
+    disableIdleTimer: false,
+  };
+}
+
+/**
  * Znajduje ninja przypisanego do danego poziomu trudności.
+ * Dla trybu custom zwraca Lloyda (Zielony Ninja - uniwersalny).
  */
 export function getNinjaForDifficulty(difficultyId: string): NinjaCharacter {
+  if (difficultyId === "custom") {
+    return findNinjaById("lloyd"); // Lloyd dla custom mode
+  }
   return NINJAS.find((n) => n.difficultyId === difficultyId) || NINJAS[0];
 }
 

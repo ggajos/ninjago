@@ -6,7 +6,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import type { MathProblem, DifficultyConfig } from "../src/game";
+import type {
+  MathProblem,
+  DifficultyConfig,
+  CustomDifficultySettings,
+} from "../src/game";
 import {
   // Stałe
   NINJAS,
@@ -15,6 +19,8 @@ import {
   // Funkcje generowania zadań
   generateAdditionProblem,
   generateSubtractionProblem,
+  generateMultiplicationProblem,
+  generateDivisionProblem,
   generateProblem,
   generateUniqueProblem,
   checkAnswer,
@@ -26,6 +32,11 @@ import {
   processAnswer,
   selectNinja,
   selectDifficulty,
+
+  // Custom difficulty
+  updateCustomDifficulty,
+  getCustomDifficultySettings,
+  getNinjaForDifficulty,
 
   // Persystencja
   saveGameData,
@@ -327,12 +338,14 @@ describe("Game Constants", () => {
   });
 
   describe("DIFFICULTIES", () => {
-    it("should have 6 difficulty levels", () => {
+    it("should have 6 difficulty levels (including custom)", () => {
       expect(DIFFICULTIES).toHaveLength(6);
     });
 
-    it("should have increasing maxNumber", () => {
-      const maxNumbers = DIFFICULTIES.map((d) => d.maxNumber);
+    it("should have increasing maxNumber for standard difficulties", () => {
+      // Exclude custom from this test (it has dynamic maxNumber)
+      const standardDiffs = DIFFICULTIES.filter((d) => !d.isCustom);
+      const maxNumbers = standardDiffs.map((d) => d.maxNumber);
 
       for (let i = 1; i < maxNumbers.length; i++) {
         expect(maxNumbers[i]).toBeGreaterThan(maxNumbers[i - 1]);
@@ -409,15 +422,15 @@ describe("Persistence (localStorage)", () => {
     saveGameData({
       highScore: 500,
       selectedNinjaId: "kai", // This is ignored - ninja is auto-selected by difficulty
-      selectedDifficultyId: "master",
+      selectedDifficultyId: "very-hard",
     });
 
     const state = createInitialState();
 
     expect(state.highScore).toBe(500);
-    // Ninja is auto-selected based on difficulty (master -> lloyd)
-    expect(state.currentNinja.id).toBe("lloyd");
-    expect(state.difficulty.id).toBe("master");
+    // Ninja is auto-selected based on difficulty (very-hard -> kai)
+    expect(state.currentNinja.id).toBe("kai");
+    expect(state.difficulty.id).toBe("very-hard");
   });
 });
 
@@ -682,5 +695,336 @@ describe("Bug Investigation: Same Visual Problem", () => {
 
     // Final DOM should show current state's problem
     expect(domProblemText).toBe(formatProblem(state.currentProblem!));
+  });
+});
+// ============================================================================
+// TESTS - Multiplication and Division
+// ============================================================================
+
+describe("Multiplication Problem Generation", () => {
+  describe("generateMultiplicationProblem", () => {
+    it("should create a valid multiplication problem", () => {
+      const problem = generateMultiplicationProblem(100);
+
+      expect(problem.operator).toBe("*");
+      expect(problem.correctAnswer).toBe(problem.operand1 * problem.operand2);
+    });
+
+    it("should generate factors within reasonable range (max 10x10)", () => {
+      for (let i = 0; i < 100; i++) {
+        const problem = generateMultiplicationProblem(100);
+
+        expect(problem.operand1).toBeGreaterThanOrEqual(1);
+        expect(problem.operand1).toBeLessThanOrEqual(10);
+        expect(problem.operand2).toBeGreaterThanOrEqual(1);
+        expect(problem.operand2).toBeLessThanOrEqual(10);
+      }
+    });
+
+    it("should always produce positive results", () => {
+      for (let i = 0; i < 50; i++) {
+        const problem = generateMultiplicationProblem(50);
+        expect(problem.correctAnswer).toBeGreaterThan(0);
+      }
+    });
+  });
+});
+
+describe("Division Problem Generation", () => {
+  describe("generateDivisionProblem", () => {
+    it("should create a valid division problem", () => {
+      const problem = generateDivisionProblem(100);
+
+      expect(problem.operator).toBe("/");
+      expect(problem.correctAnswer).toBe(problem.operand1 / problem.operand2);
+    });
+
+    it("should always produce whole number results (no remainder)", () => {
+      for (let i = 0; i < 100; i++) {
+        const problem = generateDivisionProblem(100);
+
+        // Result should be a whole number
+        expect(Number.isInteger(problem.correctAnswer)).toBe(true);
+        // Verify: dividend / divisor = quotient (no remainder)
+        expect(problem.operand1 % problem.operand2).toBe(0);
+      }
+    });
+
+    it("should never divide by zero", () => {
+      for (let i = 0; i < 100; i++) {
+        const problem = generateDivisionProblem(50);
+        expect(problem.operand2).toBeGreaterThan(0);
+      }
+    });
+
+    it("should always produce positive results", () => {
+      for (let i = 0; i < 50; i++) {
+        const problem = generateDivisionProblem(50);
+        expect(problem.correctAnswer).toBeGreaterThan(0);
+      }
+    });
+  });
+});
+
+describe("formatProblem with new operators", () => {
+  it("should format multiplication problem with × symbol", () => {
+    const problem: MathProblem = {
+      operand1: 5,
+      operand2: 3,
+      operator: "*",
+      correctAnswer: 15,
+    };
+
+    expect(formatProblem(problem)).toBe("5 × 3 = ?");
+  });
+
+  it("should format division problem with ÷ symbol", () => {
+    const problem: MathProblem = {
+      operand1: 12,
+      operand2: 4,
+      operator: "/",
+      correctAnswer: 3,
+    };
+
+    expect(formatProblem(problem)).toBe("12 ÷ 4 = ?");
+  });
+});
+
+// ============================================================================
+// TESTS - Custom Difficulty Mode
+// ============================================================================
+
+describe("Custom Difficulty Mode", () => {
+  let store: Record<string, string>;
+
+  beforeEach(() => {
+    store = {};
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(
+      (key) => store[key] || null
+    );
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => {
+      store[key] = value;
+    });
+  });
+
+  describe("DIFFICULTIES constant", () => {
+    it("should include custom difficulty", () => {
+      const customDiff = DIFFICULTIES.find((d) => d.id === "custom");
+      expect(customDiff).toBeDefined();
+      expect(customDiff?.isCustom).toBe(true);
+      expect(customDiff?.namePolish).toBe("Własny");
+    });
+
+    it("should have 6 difficulty levels (including custom)", () => {
+      expect(DIFFICULTIES).toHaveLength(6);
+    });
+  });
+
+  describe("updateCustomDifficulty", () => {
+    it("should update custom difficulty settings", () => {
+      const settings: CustomDifficultySettings = {
+        maxNumber: 50,
+        operators: ["+", "*"],
+        disableIdleTimer: true,
+      };
+
+      const updatedDiff = updateCustomDifficulty(settings);
+
+      expect(updatedDiff.maxNumber).toBe(50);
+      expect(updatedDiff.operators).toEqual(["+", "*"]);
+      expect(updatedDiff.disableIdleTimer).toBe(true);
+    });
+
+    it("should generate description based on settings", () => {
+      const settings: CustomDifficultySettings = {
+        maxNumber: 20,
+        operators: ["+", "-", "*"],
+        disableIdleTimer: false,
+      };
+
+      const updatedDiff = updateCustomDifficulty(settings);
+
+      expect(updatedDiff.description).toContain("dodawanie");
+      expect(updatedDiff.description).toContain("odejmowanie");
+      expect(updatedDiff.description).toContain("mnożenie");
+      expect(updatedDiff.description).toContain("20");
+    });
+
+    it("should include timer info in description when disabled", () => {
+      const settings: CustomDifficultySettings = {
+        maxNumber: 10,
+        operators: ["+"],
+        disableIdleTimer: true,
+      };
+
+      const updatedDiff = updateCustomDifficulty(settings);
+
+      expect(updatedDiff.description).toContain("bez timera");
+    });
+  });
+
+  describe("getCustomDifficultySettings", () => {
+    it("should return default settings when no saved data", () => {
+      const settings = getCustomDifficultySettings();
+
+      expect(settings.maxNumber).toBe(10);
+      expect(settings.operators).toEqual(["+", "-"]);
+      expect(settings.disableIdleTimer).toBe(false);
+    });
+
+    it("should return saved settings when available", () => {
+      const savedSettings: CustomDifficultySettings = {
+        maxNumber: 30,
+        operators: ["*", "/"],
+        disableIdleTimer: true,
+      };
+
+      saveGameData({
+        highScore: 100,
+        selectedNinjaId: "lloyd",
+        selectedDifficultyId: "custom",
+        customDifficulty: savedSettings,
+      });
+
+      const settings = getCustomDifficultySettings();
+
+      expect(settings.maxNumber).toBe(30);
+      expect(settings.operators).toEqual(["*", "/"]);
+      expect(settings.disableIdleTimer).toBe(true);
+    });
+  });
+
+  describe("getNinjaForDifficulty with custom", () => {
+    it("should return Lloyd for custom difficulty", () => {
+      const ninja = getNinjaForDifficulty("custom");
+      expect(ninja.id).toBe("lloyd");
+    });
+  });
+
+  describe("generateProblem with custom operators", () => {
+    it("should generate multiplication problems when configured", () => {
+      const customDiff: DifficultyConfig = {
+        id: "custom",
+        name: "Custom",
+        namePolish: "Własny",
+        maxNumber: 100,
+        operators: ["*"],
+        description: "Only multiplication",
+        disableIdleTimer: false,
+        isCustom: true,
+      };
+
+      for (let i = 0; i < 20; i++) {
+        const problem = generateProblem(customDiff);
+        expect(problem.operator).toBe("*");
+      }
+    });
+
+    it("should generate division problems when configured", () => {
+      const customDiff: DifficultyConfig = {
+        id: "custom",
+        name: "Custom",
+        namePolish: "Własny",
+        maxNumber: 100,
+        operators: ["/"],
+        description: "Only division",
+        disableIdleTimer: false,
+        isCustom: true,
+      };
+
+      for (let i = 0; i < 20; i++) {
+        const problem = generateProblem(customDiff);
+        expect(problem.operator).toBe("/");
+      }
+    });
+
+    it("should generate mixed problems when all operators configured", () => {
+      const customDiff: DifficultyConfig = {
+        id: "custom",
+        name: "Custom",
+        namePolish: "Własny",
+        maxNumber: 100,
+        operators: ["+", "-", "*", "/"],
+        description: "All operations",
+        disableIdleTimer: false,
+        isCustom: true,
+      };
+
+      const operators = new Set<string>();
+      for (let i = 0; i < 100; i++) {
+        const problem = generateProblem(customDiff);
+        operators.add(problem.operator);
+      }
+
+      // Should eventually generate all 4 operator types
+      expect(operators.size).toBe(4);
+      expect(operators.has("+")).toBe(true);
+      expect(operators.has("-")).toBe(true);
+      expect(operators.has("*")).toBe(true);
+      expect(operators.has("/")).toBe(true);
+    });
+  });
+
+  describe("selectDifficulty with custom", () => {
+    it("should select custom difficulty and assign Lloyd", () => {
+      const state = createInitialState();
+      const newState = selectDifficulty(state, "custom");
+
+      expect(newState.difficulty.id).toBe("custom");
+      expect(newState.currentNinja.id).toBe("lloyd");
+    });
+  });
+
+  describe("Game flow with custom difficulty", () => {
+    it("should play a complete round with custom multiplication settings", () => {
+      // Setup custom difficulty with only multiplication
+      updateCustomDifficulty({
+        maxNumber: 50,
+        operators: ["*"],
+        disableIdleTimer: true,
+      });
+
+      let state = createInitialState();
+      state = selectDifficulty(state, "custom");
+      state = startGame(state);
+
+      // First problem should be multiplication
+      expect(state.currentProblem).not.toBeNull();
+      expect(state.currentProblem!.operator).toBe("*");
+
+      // Answer correctly
+      const correctAnswer = state.currentProblem!.correctAnswer;
+      const result = processAnswer(state, correctAnswer);
+
+      expect(result.isCorrect).toBe(true);
+      expect(result.state.score).toBeGreaterThan(0);
+
+      // Next problem should also be multiplication
+      expect(result.state.currentProblem).not.toBeNull();
+      expect(result.state.currentProblem!.operator).toBe("*");
+    });
+
+    it("should play with division and verify integer results", () => {
+      updateCustomDifficulty({
+        maxNumber: 100,
+        operators: ["/"],
+        disableIdleTimer: false,
+      });
+
+      let state = createInitialState();
+      state = selectDifficulty(state, "custom");
+      state = startGame(state);
+
+      // Play 5 rounds
+      for (let i = 0; i < 5; i++) {
+        const problem = state.currentProblem!;
+        expect(problem.operator).toBe("/");
+        expect(Number.isInteger(problem.correctAnswer)).toBe(true);
+
+        const result = processAnswer(state, problem.correctAnswer);
+        state = result.state;
+        expect(result.isCorrect).toBe(true);
+      }
+    });
   });
 });

@@ -164,6 +164,56 @@
         <button id="victory-menu-btn" class="btn btn-small">⬅ Menu główne</button>
       </div>
 
+      <!-- MODAL KONFIGURACJI CUSTOM -->
+      <div id="custom-modal" class="modal hidden">
+        <div class="modal-content">
+          <h2>⚙️ Własne ustawienia</h2>
+          
+          <div class="custom-setting">
+            <label>Maksymalny wynik działania:</label>
+            <div class="range-display">
+              <input type="range" id="custom-max-number" min="5" max="100" value="10" />
+              <span id="custom-max-number-value" class="range-value">10</span>
+            </div>
+            <p class="setting-hint">💡 Np. dla "20" zadania to: 12+8, 15-3, 4×5, 18÷2</p>
+          </div>
+          
+          <div class="custom-setting">
+            <label>Operacje matematyczne:</label>
+            <div class="operator-toggles">
+              <label class="operator-toggle">
+                <input type="checkbox" id="op-add" checked />
+                <span>+</span>
+              </label>
+              <label class="operator-toggle">
+                <input type="checkbox" id="op-sub" checked />
+                <span>−</span>
+              </label>
+              <label class="operator-toggle">
+                <input type="checkbox" id="op-mul" />
+                <span>×</span>
+              </label>
+              <label class="operator-toggle">
+                <input type="checkbox" id="op-div" />
+                <span>÷</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="custom-setting">
+            <label class="timer-toggle">
+              <input type="checkbox" id="custom-no-timer" />
+              <span>∞ Bez limitu czasu</span>
+            </label>
+          </div>
+          
+          <div class="modal-buttons">
+            <button id="custom-save-btn" class="btn btn-start">Zapisz</button>
+            <button id="custom-cancel-btn" class="btn btn-small">Anuluj</button>
+          </div>
+        </div>
+      </div>
+
       <!-- STOPKA -->
       <footer class="site-footer">
         <div class="footer-content">

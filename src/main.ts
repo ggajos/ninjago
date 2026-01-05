@@ -5,7 +5,12 @@
  */
 
 import "./style.css";
-import type { GameState, EnemyType } from "./game";
+import type {
+  GameState,
+  EnemyType,
+  MathOperator,
+  CustomDifficultySettings,
+} from "./game";
 import {
   NINJAS,
   DIFFICULTIES,
@@ -21,6 +26,9 @@ import {
   getEnemyType,
   getIdleTimeout,
   getNinjaForDifficulty,
+  updateCustomDifficulty,
+  getCustomDifficultySettings,
+  saveGameData,
 } from "./game";
 import { playSound, getMuted, toggleMuted } from "./sounds";
 
@@ -549,6 +557,18 @@ const victoryEnemies = $("#victory-enemies");
 const victoryRestartBtn = $("#victory-restart-btn");
 const victoryMenuBtn = $("#victory-menu-btn");
 
+// Custom modal
+const customModal = $("#custom-modal");
+const customMaxNumber = $<HTMLInputElement>("#custom-max-number");
+const customMaxNumberValue = $("#custom-max-number-value");
+const opAdd = $<HTMLInputElement>("#op-add");
+const opSub = $<HTMLInputElement>("#op-sub");
+const opMul = $<HTMLInputElement>("#op-mul");
+const opDiv = $<HTMLInputElement>("#op-div");
+const customNoTimer = $<HTMLInputElement>("#custom-no-timer");
+const customSaveBtn = $("#custom-save-btn");
+const customCancelBtn = $("#custom-cancel-btn");
+
 // ============================================================================
 // EPIC EFFECTS & STORY SYSTEM
 // ============================================================================
@@ -1066,10 +1086,16 @@ function renderDifficultyButtons(): void {
     const noTimerBadge = diff.disableIdleTimer
       ? '<span class="no-timer-badge">∞ Bez limitu czasu!</span>'
       : "";
+    const isCustom = diff.isCustom;
+    const customBadge = isCustom
+      ? '<span class="custom-badge">⚙️ Kliknij aby skonfigurować</span>'
+      : "";
 
     return `
     <button 
-      class="difficulty-btn ${isSelected ? "selected" : ""}"
+      class="difficulty-btn ${isSelected ? "selected" : ""} ${
+      isCustom ? "custom-difficulty" : ""
+    }"
       data-difficulty-id="${diff.id}"
       style="--ninja-color: ${ninja.color}"
     >
@@ -1084,6 +1110,7 @@ function renderDifficultyButtons(): void {
       ninja.abilityDescription
     }</span>
         ${noTimerBadge}
+        ${customBadge}
       </div>
     </button>
   `;
@@ -1472,6 +1499,12 @@ difficultyButtons.addEventListener("click", (e) => {
 
   const difficultyId = btn.dataset.difficultyId;
   if (difficultyId) {
+    // Jeśli wybrano Custom, pokaż modal konfiguracji
+    if (difficultyId === "custom") {
+      openCustomModal();
+      return;
+    }
+
     gameState = selectDifficulty(gameState, difficultyId);
     renderDifficultyButtons();
     // Aktualizuj kolor motywu na podstawie nowego ninja
@@ -1479,6 +1512,94 @@ difficultyButtons.addEventListener("click", (e) => {
       "--current-ninja-color",
       gameState.currentNinja.color
     );
+  }
+});
+
+// ============================================================================
+// CUSTOM DIFFICULTY MODAL
+// ============================================================================
+
+/**
+ * Otwiera modal konfiguracji Custom
+ */
+function openCustomModal(): void {
+  // Załaduj aktualne ustawienia
+  const settings = getCustomDifficultySettings();
+
+  customMaxNumber.value = String(settings.maxNumber);
+  customMaxNumberValue.textContent = String(settings.maxNumber);
+  opAdd.checked = settings.operators.includes("+");
+  opSub.checked = settings.operators.includes("-");
+  opMul.checked = settings.operators.includes("*");
+  opDiv.checked = settings.operators.includes("/");
+  customNoTimer.checked = settings.disableIdleTimer;
+
+  customModal.classList.remove("hidden");
+}
+
+/**
+ * Zamyka modal konfiguracji Custom
+ */
+function closeCustomModal(): void {
+  customModal.classList.add("hidden");
+}
+
+/**
+ * Zapisuje ustawienia Custom i wybiera ten tryb
+ */
+function saveCustomSettings(): void {
+  const operators: MathOperator[] = [];
+  if (opAdd.checked) operators.push("+");
+  if (opSub.checked) operators.push("-");
+  if (opMul.checked) operators.push("*");
+  if (opDiv.checked) operators.push("/");
+
+  // Musi być przynajmniej jedna operacja
+  if (operators.length === 0) {
+    operators.push("+");
+    opAdd.checked = true;
+  }
+
+  const settings: CustomDifficultySettings = {
+    maxNumber: parseInt(customMaxNumber.value, 10),
+    operators,
+    disableIdleTimer: customNoTimer.checked,
+  };
+
+  // Aktualizuj konfigurację Custom
+  updateCustomDifficulty(settings);
+
+  // Zapisz do localStorage
+  saveGameData({
+    highScore: gameState.highScore,
+    selectedNinjaId: gameState.currentNinja.id,
+    selectedDifficultyId: "custom",
+    customDifficulty: settings,
+  });
+
+  // Wybierz tryb Custom
+  gameState = selectDifficulty(gameState, "custom");
+  renderDifficultyButtons();
+  document.documentElement.style.setProperty(
+    "--current-ninja-color",
+    gameState.currentNinja.color
+  );
+
+  closeCustomModal();
+}
+
+// Event listeners dla modalu Custom
+customMaxNumber.addEventListener("input", () => {
+  customMaxNumberValue.textContent = customMaxNumber.value;
+});
+
+customSaveBtn.addEventListener("click", saveCustomSettings);
+customCancelBtn.addEventListener("click", closeCustomModal);
+
+// Zamknij modal klikając poza nim
+customModal.addEventListener("click", (e) => {
+  if (e.target === customModal) {
+    closeCustomModal();
   }
 });
 
