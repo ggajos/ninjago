@@ -751,45 +751,41 @@ function changeBackground(enemyId: string): void {
     config.ambientColor
   );
 
-  // Dodaj pływające elementy
-  const container = document.createElement("div");
-  container.className = "floating-elements-container";
+  // WYŁĄCZONE dla wydajności - floating elements powodowały przegrzewanie telefonu
+  // const container = document.createElement("div");
+  // container.className = "floating-elements-container";
+  // for (let i = 0; i < 15; i++) {
+  //   const element = document.createElement("div");
+  //   element.className = "floating-element";
+  //   element.textContent =
+  //     config.floatingElements[
+  //       Math.floor(Math.random() * config.floatingElements.length)
+  //     ];
+  //   element.style.left = `${Math.random() * 100}%`;
+  //   element.style.animationDelay = `${Math.random() * 10}s`;
+  //   element.style.animationDuration = `${15 + Math.random() * 20}s`;
+  //   element.style.fontSize = `${1.5 + Math.random() * 2}rem`;
+  //   element.style.opacity = `${0.15 + Math.random() * 0.25}`;
+  //   container.appendChild(element);
+  // }
+  // document.body.appendChild(container);
+  // currentBackgroundElements.push(container);
 
-  for (let i = 0; i < 15; i++) {
-    const element = document.createElement("div");
-    element.className = "floating-element";
-    element.textContent =
-      config.floatingElements[
-        Math.floor(Math.random() * config.floatingElements.length)
-      ];
-    element.style.left = `${Math.random() * 100}%`;
-    element.style.animationDelay = `${Math.random() * 10}s`;
-    element.style.animationDuration = `${15 + Math.random() * 20}s`;
-    element.style.fontSize = `${1.5 + Math.random() * 2}rem`;
-    element.style.opacity = `${0.15 + Math.random() * 0.25}`;
-    container.appendChild(element);
-  }
-
-  document.body.appendChild(container);
-  currentBackgroundElements.push(container);
-
-  // Dodaj ambient particles
-  const particleContainer = document.createElement("div");
-  particleContainer.className = "ambient-particles";
-
-  for (let i = 0; i < 30; i++) {
-    const particle = document.createElement("div");
-    particle.className = "ambient-particle";
-    particle.textContent = config.particles;
-    particle.style.left = `${Math.random() * 100}%`;
-    particle.style.top = `${Math.random() * 100}%`;
-    particle.style.animationDelay = `${Math.random() * 5}s`;
-    particle.style.animationDuration = `${3 + Math.random() * 4}s`;
-    particleContainer.appendChild(particle);
-  }
-
-  document.body.appendChild(particleContainer);
-  currentBackgroundElements.push(particleContainer);
+  // WYŁĄCZONE dla wydajności - ambient particles powodowały przegrzewanie telefonu
+  // const particleContainer = document.createElement("div");
+  // particleContainer.className = "ambient-particles";
+  // for (let i = 0; i < 30; i++) {
+  //   const particle = document.createElement("div");
+  //   particle.className = "ambient-particle";
+  //   particle.textContent = config.particles;
+  //   particle.style.left = `${Math.random() * 100}%`;
+  //   particle.style.top = `${Math.random() * 100}%`;
+  //   particle.style.animationDelay = `${Math.random() * 5}s`;
+  //   particle.style.animationDuration = `${3 + Math.random() * 4}s`;
+  //   particleContainer.appendChild(particle);
+  // }
+  // document.body.appendChild(particleContainer);
+  // currentBackgroundElements.push(particleContainer);
 
   // Dodaj efekt vignette
   let vignette = document.querySelector(".vignette-overlay") as HTMLElement;

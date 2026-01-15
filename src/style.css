@@ -145,8 +145,8 @@ body {
 .site-footer {
   width: 100%;
   padding: var(--space-md) var(--space-lg);
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.7);
+  /* backdrop-filter: blur(10px); - WYŁĄCZONE dla wydajności */
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin-top: auto;
 }
@@ -1078,8 +1078,8 @@ h2 {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: rgba(26, 26, 46, 0.95);
-    backdrop-filter: blur(10px);
+    background: rgba(26, 26, 46, 0.98);
+    /* backdrop-filter: blur(10px); - WYŁĄCZONE dla wydajności */
     margin: calc(-1 * var(--space-md));
     margin-bottom: var(--space-md);
     padding: var(--space-sm);
@@ -1213,11 +1213,11 @@ h2 {
 }
 
 .fighter-player {
-  animation: fighterIdle 2s ease-in-out infinite;
+  /* animation: fighterIdle 2s ease-in-out infinite; - WYŁĄCZONE dla wydajności */
 }
 
 .fighter-enemy {
-  animation: fighterIdleEnemy 2s ease-in-out infinite 0.5s;
+  /* animation: fighterIdleEnemy 2s ease-in-out infinite 0.5s; - WYŁĄCZONE dla wydajności */
 }
 
 /* Enemy name display */
