@@ -1413,11 +1413,11 @@ function showAttackEffect(attacker: "player" | "enemy"): void {
 function showFeedback(
   isCorrect: boolean,
   message: string,
-  correctAnswer?: number
+  _correctAnswer?: number
 ): void {
   feedback.textContent = isCorrect
     ? "✓ Dobrze!"
-    : `✗ Źle! Poprawna odpowiedź: ${correctAnswer}`;
+    : "✗ Źle! Spróbuj jeszcze raz!";
   feedback.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
 
   ninjaMessage.textContent = message;
