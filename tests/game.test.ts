@@ -10,11 +10,15 @@ import type {
   MathProblem,
   DifficultyConfig,
   CustomDifficultySettings,
+  StoryPathId,
 } from "../src/game";
 import {
   // Stałe
   NINJAS,
   DIFFICULTIES,
+  ENEMY_TYPES,
+  STORY_PATHS,
+  COMBAT_CONFIG,
 
   // Funkcje generowania zadań
   generateAdditionProblem,
@@ -37,6 +41,14 @@ import {
   updateCustomDifficulty,
   getCustomDifficultySettings,
   getNinjaForDifficulty,
+
+  // Story paths
+  getRandomStoryPath,
+  findStoryPathById,
+  getDefaultStoryPath,
+  findEnemyById,
+  getEnemyType,
+  getEnemyHealthForType,
 
   // Persystencja
   saveGameData,
@@ -1025,6 +1037,484 @@ describe("Custom Difficulty Mode", () => {
         state = result.state;
         expect(result.isCorrect).toBe(true);
       }
+    });
+  });
+});
+
+// ============================================================================
+// Story Path System Tests
+// ============================================================================
+
+describe("Story Path System", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  describe("STORY_PATHS constant", () => {
+    it("should have 4 story paths", () => {
+      expect(STORY_PATHS).toHaveLength(4);
+    });
+
+    it("should have unique IDs", () => {
+      const ids = STORY_PATHS.map((p) => p.id);
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(STORY_PATHS.length);
+    });
+
+    it("should have non-empty bossOrder arrays", () => {
+      for (const path of STORY_PATHS) {
+        expect(path.bossOrder.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("should have valid boss IDs in bossOrder", () => {
+      const validBossIds = ENEMY_TYPES.filter(
+        (e) => e.isBoss && e.id !== "overlord"
+      ).map((e) => e.id);
+
+      for (const path of STORY_PATHS) {
+        for (const bossId of path.bossOrder) {
+          expect(validBossIds).toContain(bossId);
+        }
+      }
+    });
+
+    it("should include classic path", () => {
+      const classicPath = STORY_PATHS.find((p) => p.id === "classic");
+      expect(classicPath).toBeDefined();
+    });
+  });
+
+  describe("findStoryPathById", () => {
+    it("should find existing path by ID", () => {
+      const path = findStoryPathById("serpentine");
+      expect(path.id).toBe("serpentine");
+    });
+
+    it("should return classic path for unknown ID", () => {
+      const path = findStoryPathById("unknown" as StoryPathId);
+      expect(path.id).toBe("classic");
+    });
+  });
+
+  describe("getDefaultStoryPath", () => {
+    it("should return classic path", () => {
+      const path = getDefaultStoryPath();
+      expect(path.id).toBe("classic");
+    });
+  });
+
+  describe("getRandomStoryPath", () => {
+    it("should return a valid story path", () => {
+      const path = getRandomStoryPath();
+      expect(STORY_PATHS).toContain(path);
+    });
+
+    it("should return different paths over many calls (randomness test)", () => {
+      const pathIds = new Set<StoryPathId>();
+      for (let i = 0; i < 100; i++) {
+        pathIds.add(getRandomStoryPath().id);
+      }
+      // With 100 calls and 4 paths, we should see at least 2 different paths
+      expect(pathIds.size).toBeGreaterThan(1);
+    });
+  });
+
+  describe("findEnemyById", () => {
+    it("should find skeleton enemy", () => {
+      const enemy = findEnemyById("skeleton");
+      expect(enemy.id).toBe("skeleton");
+      expect(enemy.isBoss).toBe(false);
+    });
+
+    it("should find overlord boss", () => {
+      const enemy = findEnemyById("overlord");
+      expect(enemy.id).toBe("overlord");
+      expect(enemy.isBoss).toBe(true);
+    });
+
+    it("should return first enemy for unknown ID (with warning)", () => {
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const enemy = findEnemyById("unknown-enemy-id");
+      expect(enemy).toBeDefined();
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("getEnemyType with storyPath", () => {
+    it("should return regular enemy for levels 1-4", () => {
+      const regularEnemies = ENEMY_TYPES.filter((e) => !e.isBoss);
+      const regularIds = regularEnemies.map((e) => e.id);
+
+      for (let level = 1; level <= 4; level++) {
+        const enemy = getEnemyType(level);
+        expect(regularIds).toContain(enemy.id);
+        expect(enemy.isBoss).toBe(false);
+      }
+    });
+
+    it("should return first boss from path at level 5", () => {
+      const classicPath = findStoryPathById("classic");
+      const enemy = getEnemyType(5, classicPath);
+      expect(enemy.id).toBe(classicPath.bossOrder[0]);
+    });
+
+    it("should return second boss from path at level 6", () => {
+      const classicPath = findStoryPathById("classic");
+      const enemy = getEnemyType(6, classicPath);
+      expect(enemy.id).toBe(classicPath.bossOrder[1]);
+    });
+
+    it("should return Overlord for levels beyond bossOrder", () => {
+      const classicPath = findStoryPathById("classic");
+      const maxBossLevel = 5 + classicPath.bossOrder.length;
+      const enemy = getEnemyType(maxBossLevel + 1, classicPath);
+      expect(enemy.id).toBe("overlord");
+    });
+
+    it("should use classic path as fallback when no path provided", () => {
+      const classicPath = findStoryPathById("classic");
+      const enemyWithPath = getEnemyType(5, classicPath);
+      const enemyWithoutPath = getEnemyType(5);
+      // Both should return first boss of classic path
+      expect(enemyWithPath.id).toBe(enemyWithoutPath.id);
+    });
+
+    it("should follow serpentine path correctly", () => {
+      const serpentinePath = findStoryPathById("serpentine");
+      const enemy = getEnemyType(5, serpentinePath);
+      expect(enemy.id).toBe("serpentine"); // First boss in serpentine path
+    });
+  });
+
+  describe("getEnemyHealthForType", () => {
+    it("should calculate health based on enemy scale", () => {
+      const skeleton = findEnemyById("skeleton");
+      const overlord = findEnemyById("overlord");
+
+      const skeletonHealth = getEnemyHealthForType(1, skeleton);
+      const overlordHealth = getEnemyHealthForType(1, overlord);
+
+      expect(overlordHealth).toBeGreaterThan(skeletonHealth);
+    });
+
+    it("should increase health with level", () => {
+      const skeleton = findEnemyById("skeleton");
+      const health1 = getEnemyHealthForType(1, skeleton);
+      const health5 = getEnemyHealthForType(5, skeleton);
+
+      expect(health5).toBeGreaterThan(health1);
+    });
+
+    it("should be deterministic (same inputs = same output)", () => {
+      const skeleton = findEnemyById("skeleton");
+      const health1 = getEnemyHealthForType(3, skeleton);
+      const health2 = getEnemyHealthForType(3, skeleton);
+
+      expect(health1).toBe(health2);
+    });
+  });
+
+  describe("GameState with storyPath", () => {
+    it("should include storyPath in initial state", () => {
+      const state = createInitialState();
+      expect(state.storyPath).toBeDefined();
+      expect(STORY_PATHS).toContain(state.storyPath);
+    });
+
+    it("should include currentEnemy in initial state", () => {
+      const state = createInitialState();
+      expect(state.currentEnemy).toBeDefined();
+      expect(state.currentEnemy.id).toBeDefined();
+    });
+
+    it("should get new storyPath on startGame", () => {
+      const state1 = createInitialState();
+      const originalPath = state1.storyPath;
+
+      // Start game many times - at least one should have different path
+      let foundDifferent = false;
+      for (let i = 0; i < 50; i++) {
+        const state2 = startGame(state1);
+        if (state2.storyPath.id !== originalPath.id) {
+          foundDifferent = true;
+          break;
+        }
+      }
+      // With 50 tries and 4 paths, probability of all same is (1/4)^50 ≈ 0
+      expect(foundDifferent).toBe(true);
+    });
+
+    it("should update currentEnemy when enemy is defeated", () => {
+      let state = createInitialState();
+      state = startGame(state);
+
+      // Defeat enemy by reducing health to 0
+      state = {
+        ...state,
+        enemyHealth: 1,
+      };
+
+      const result = processAnswer(state, state.currentProblem!.correctAnswer);
+
+      if (result.enemyDefeated) {
+        // currentEnemy should be updated in state
+        expect(result.state.currentEnemy).toBeDefined();
+        expect(result.state.enemyLevel).toBe(state.enemyLevel + 1);
+      }
+    });
+  });
+
+  describe("storyPath persistence", () => {
+    it("should save storyPathId to localStorage", () => {
+      let state = createInitialState();
+      state = startGame(state);
+
+      // Trigger save by answering correctly
+      processAnswer(state, state.currentProblem!.correctAnswer);
+
+      const savedData = loadGameData();
+      expect(savedData?.storyPathId).toBe(state.storyPath.id);
+    });
+
+    it("should restore storyPath from localStorage", () => {
+      // Save specific path
+      saveGameData({
+        highScore: 100,
+        selectedNinjaId: "kai",
+        selectedDifficultyId: "easy",
+        storyPathId: "serpentine",
+      });
+
+      const state = createInitialState();
+      expect(state.storyPath.id).toBe("serpentine");
+    });
+
+    it("should use random path when no saved storyPathId", () => {
+      saveGameData({
+        highScore: 100,
+        selectedNinjaId: "kai",
+        selectedDifficultyId: "easy",
+        // No storyPathId
+      });
+
+      const state = createInitialState();
+      // Should still have a valid path
+      expect(STORY_PATHS).toContain(state.storyPath);
+    });
+  });
+
+  describe("ENEMY_TYPES validation", () => {
+    it("should have regular enemies (non-bosses)", () => {
+      const regularEnemies = ENEMY_TYPES.filter((e) => !e.isBoss);
+      expect(regularEnemies.length).toBeGreaterThan(0);
+    });
+
+    it("should have boss enemies", () => {
+      const bosses = ENEMY_TYPES.filter((e) => e.isBoss);
+      expect(bosses.length).toBeGreaterThan(0);
+    });
+
+    it("should have overlord as final boss", () => {
+      const overlord = ENEMY_TYPES.find((e) => e.id === "overlord");
+      expect(overlord).toBeDefined();
+      expect(overlord?.isBoss).toBe(true);
+      expect(overlord?.scale).toBe(2.0); // Biggest enemy
+    });
+
+    it("should have unique enemy IDs", () => {
+      const ids = ENEMY_TYPES.map((e) => e.id);
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(ENEMY_TYPES.length);
+    });
+
+    it("should have all required properties for each enemy", () => {
+      for (const enemy of ENEMY_TYPES) {
+        expect(enemy.id).toBeDefined();
+        expect(enemy.name).toBeDefined();
+        expect(enemy.emoji).toBeDefined();
+        expect(enemy.color).toBeDefined();
+        expect(typeof enemy.scale).toBe("number");
+        expect(typeof enemy.isBoss).toBe("boolean");
+      }
+    });
+  });
+
+  describe("COMBAT_CONFIG constants", () => {
+    it("should have BOSS_LEVEL_OFFSET defined", () => {
+      expect(COMBAT_CONFIG.BOSS_LEVEL_OFFSET).toBeDefined();
+      expect(typeof COMBAT_CONFIG.BOSS_LEVEL_OFFSET).toBe("number");
+    });
+
+    it("should have SKELETON_REPEATS defined", () => {
+      expect(COMBAT_CONFIG.SKELETON_REPEATS).toBeDefined();
+      expect(typeof COMBAT_CONFIG.SKELETON_REPEATS).toBe("number");
+    });
+
+    it("boss level calculation should be consistent", () => {
+      // Level 5 should be boss index 0
+      // Formula: bossIndex = level - SKELETON_REPEATS - BOSS_LEVEL_OFFSET
+      const bossIndex =
+        5 - COMBAT_CONFIG.SKELETON_REPEATS - COMBAT_CONFIG.BOSS_LEVEL_OFFSET;
+      expect(bossIndex).toBe(0);
+    });
+  });
+
+  describe("Victory condition", () => {
+    it("should set isVictory when Overlord is defeated", () => {
+      let state = createInitialState();
+      state = startGame(state);
+
+      // Set up state with Overlord as current enemy at 1 HP
+      state = {
+        ...state,
+        currentEnemy: findEnemyById("overlord"),
+        enemyHealth: 1,
+      };
+
+      const result = processAnswer(state, state.currentProblem!.correctAnswer);
+
+      expect(result.isVictory).toBe(true);
+      expect(result.state.isVictory).toBe(true);
+      expect(result.state.isGameOver).toBe(true);
+      expect(result.newEnemyType).toBeNull(); // No new enemy after victory
+    });
+
+    it("should award bonus points for defeating Overlord", () => {
+      let state = createInitialState();
+      state = startGame(state);
+
+      const initialScore = state.score;
+
+      // Set up state with Overlord at 1 HP
+      state = {
+        ...state,
+        currentEnemy: findEnemyById("overlord"),
+        enemyHealth: 1,
+      };
+
+      const result = processAnswer(state, state.currentProblem!.correctAnswer);
+
+      // Should get regular points + streak + 500 bonus for Overlord
+      expect(result.state.score).toBeGreaterThan(initialScore + 500);
+    });
+
+    it("should not process answers after victory", () => {
+      let state = createInitialState();
+      state = startGame(state);
+      state = { ...state, isVictory: true, isGameOver: true };
+
+      const result = processAnswer(state, 42);
+
+      expect(result.isCorrect).toBe(false);
+      expect(result.state).toBe(state); // State unchanged
+    });
+  });
+
+  describe("Input sanitization", () => {
+    it("should treat NaN as wrong answer", () => {
+      let state = createInitialState();
+      state = startGame(state);
+
+      const result = processAnswer(state, NaN);
+
+      expect(result.isCorrect).toBe(false);
+      expect(result.enemyAttacked).toBe(true);
+    });
+
+    it("should treat Infinity as wrong answer", () => {
+      let state = createInitialState();
+      state = startGame(state);
+
+      const result = processAnswer(state, Infinity);
+
+      expect(result.isCorrect).toBe(false);
+      expect(result.enemyAttacked).toBe(true);
+    });
+
+    it("should treat -Infinity as wrong answer", () => {
+      let state = createInitialState();
+      state = startGame(state);
+
+      const result = processAnswer(state, -Infinity);
+
+      expect(result.isCorrect).toBe(false);
+      expect(result.enemyAttacked).toBe(true);
+    });
+  });
+
+  describe("localStorage validation", () => {
+    it("should return null for corrupted highScore", () => {
+      localStorage.setItem(
+        "ninjago-math-game-save",
+        JSON.stringify({
+          highScore: "not a number",
+          selectedNinjaId: "kai",
+          selectedDifficultyId: "easy",
+        })
+      );
+
+      const result = loadGameData();
+      expect(result).toBeNull();
+    });
+
+    it("should return null for missing required fields", () => {
+      localStorage.setItem(
+        "ninjago-math-game-save",
+        JSON.stringify({
+          highScore: 100,
+          // missing selectedNinjaId and selectedDifficultyId
+        })
+      );
+
+      const result = loadGameData();
+      expect(result).toBeNull();
+    });
+
+    it("should strip corrupted customDifficulty", () => {
+      localStorage.setItem(
+        "ninjago-math-game-save",
+        JSON.stringify({
+          highScore: 100,
+          selectedNinjaId: "kai",
+          selectedDifficultyId: "easy",
+          customDifficulty: {
+            maxNumber: "not a number",
+            operators: "+", // should be array
+            disableIdleTimer: "yes", // should be boolean
+          },
+        })
+      );
+
+      const result = loadGameData();
+      expect(result).not.toBeNull();
+      expect(result?.customDifficulty).toBeUndefined();
+    });
+
+    it("should handle valid save data", () => {
+      localStorage.setItem(
+        "ninjago-math-game-save",
+        JSON.stringify({
+          highScore: 500,
+          selectedNinjaId: "kai",
+          selectedDifficultyId: "hard",
+          storyPathId: "serpentine",
+          customDifficulty: {
+            maxNumber: 50,
+            operators: ["*", "/"],
+            disableIdleTimer: true,
+          },
+        })
+      );
+
+      const result = loadGameData();
+      expect(result).not.toBeNull();
+      expect(result?.highScore).toBe(500);
+      expect(result?.storyPathId).toBe("serpentine");
+      expect(result?.customDifficulty?.maxNumber).toBe(50);
     });
   });
 });

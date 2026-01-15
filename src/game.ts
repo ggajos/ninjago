@@ -71,11 +71,13 @@ export interface GameState {
   enemyHealth: number;
   maxEnemyHealth: number;
   isGameOver: boolean;
+  isVictory: boolean; // czy gracz wygrał (pokonał Overlorda)
   lastAnswerTime: number; // timestamp ostatniej odpowiedzi (dla idle attack)
   // Enemy progression
   enemyLevel: number; // poziom wroga (1 = szkielet, 2+ = bossy)
   enemiesDefeated: number; // licznik pokonanych wrogów
   storyPath: StoryPath; // aktualna ścieżka fabularna
+  currentEnemy: EnemyType; // aktualny wróg (cache - nie losujemy przy każdym renderze)
 }
 
 /** Dane zapisywane w localStorage */
@@ -84,6 +86,7 @@ export interface SavedData {
   selectedNinjaId: string;
   selectedDifficultyId: string;
   customDifficulty?: CustomDifficultySettings;
+  storyPathId?: StoryPathId; // persystencja ścieżki fabularnej
 }
 
 /** Ustawienia niestandardowego poziomu trudności */
@@ -358,7 +361,11 @@ export const COMBAT_CONFIG = {
   HEALTH_REGEN_ON_HIT: 5, // regeneracja zdrowia przy poprawnej odpowiedzi
   STREAK_BONUS_DAMAGE: 3, // bonus do obrażeń za każdą serię (max 5)
   SKELETON_REPEATS: 3, // ile razy powtarza się mały szkielet przed bossem
-};
+  // Stała wyjaśniająca offset między poziomem a indeksem bossa
+  // Poziom 5 = pierwszy boss (index 0), więc: bossIndex = level - SKELETON_REPEATS - 2
+  // -2 bo: -SKELETON_REPEATS (3) daje level 2, a chcemy index 0, więc jeszcze -2
+  BOSS_LEVEL_OFFSET: 2,
+} as const;
 
 // ============================================================================
 // TYPY WROGÓW
@@ -451,7 +458,7 @@ export const ENEMY_TYPES: EnemyType[] = [
   {
     id: "dragon-hunter",
     name: "Łowca Smoków",
-    emoji: "🏹",
+    emoji: "🐉",
     color: "#8b4513",
     scale: 1.7,
     isBoss: true,
@@ -563,61 +570,137 @@ export const STORY_PATHS: StoryPath[] = [
   },
 ];
 
+// ============================================================================
+// WALIDACJA ŚCIEŻEK FABULARNYCH (compile-time i runtime)
+// ============================================================================
+
+/** Wszystkie poprawne ID bossów (do walidacji) */
+const VALID_BOSS_IDS = new Set(
+  ENEMY_TYPES.filter((e) => e.isBoss && e.id !== "overlord").map((e) => e.id)
+);
+
+/** Waliduje ścieżkę fabularną - sprawdza czy wszystkie ID bossów istnieją */
+function validateStoryPath(path: StoryPath): void {
+  if (path.bossOrder.length === 0) {
+    throw new Error(`Story path "${path.id}" has empty bossOrder array`);
+  }
+  for (const bossId of path.bossOrder) {
+    if (!VALID_BOSS_IDS.has(bossId)) {
+      throw new Error(
+        `Invalid boss ID "${bossId}" in story path "${path.id}". Valid IDs: ${[
+          ...VALID_BOSS_IDS,
+        ].join(", ")}`
+      );
+    }
+  }
+}
+
+// Waliduj wszystkie ścieżki przy starcie (fail-fast)
+STORY_PATHS.forEach(validateStoryPath);
+
+/** Znajduje ścieżkę po ID z walidacją */
+export function findStoryPathById(id: StoryPathId): StoryPath {
+  const path = STORY_PATHS.find((p) => p.id === id);
+  if (!path) {
+    console.warn(`Story path "${id}" not found, falling back to classic`);
+    return STORY_PATHS.find((p) => p.id === "classic") ?? STORY_PATHS[0];
+  }
+  return path;
+}
+
+/** Domyślna ścieżka (classic) - z walidacją */
+export function getDefaultStoryPath(): StoryPath {
+  return findStoryPathById("classic");
+}
+
 /** Losuje ścieżkę fabularną */
 export function getRandomStoryPath(): StoryPath {
+  if (STORY_PATHS.length === 0) {
+    throw new Error("CRITICAL: No story paths defined in STORY_PATHS");
+  }
   const index = Math.floor(Math.random() * STORY_PATHS.length);
   return STORY_PATHS[index];
 }
 
-/** Znajduje wroga po ID */
-export function findEnemyById(id: string): EnemyType | undefined {
-  return ENEMY_TYPES.find((e) => e.id === id);
+/** Znajduje wroga po ID z walidacją */
+export function findEnemyById(id: string): EnemyType {
+  const enemy = ENEMY_TYPES.find((e) => e.id === id);
+  if (!enemy) {
+    console.error(`Enemy "${id}" not found, falling back to skeleton`);
+    return ENEMY_TYPES[0]; // fallback do pierwszego wroga
+  }
+  return enemy;
 }
 
-/** Wrogowie regularni (nie-bossy) */
-const REGULAR_ENEMIES = ENEMY_TYPES.filter((e) => !e.isBoss);
+/** Zwraca Overlorda (final boss) z walidacją */
+function getOverlord(): EnemyType {
+  const overlord = ENEMY_TYPES.find((e) => e.id === "overlord");
+  if (!overlord) {
+    throw new Error("CRITICAL: Overlord enemy type not found in ENEMY_TYPES");
+  }
+  return overlord;
+}
+
+/** Zwraca listę wrogów regularnych (nie-bossów) - leniwe obliczanie */
+function getRegularEnemies(): EnemyType[] {
+  return ENEMY_TYPES.filter((e) => !e.isBoss);
+}
+
+/** Maksymalny poziom regularnych wrogów (przed bossami) */
+const REGULAR_ENEMY_MAX_LEVEL = COMBAT_CONFIG.SKELETON_REPEATS + 1;
 
 /**
- * Zwraca typ wroga na podstawie poziomu i ścieżki fabularnej
+ * Zwraca typ wroga na podstawie poziomu i ścieżki fabularnej.
+ * UWAGA: Ta funkcja jest deterministyczna dla bossów, ale losowa dla regularnych wrogów.
+ * Dla spójnego UI używaj state.currentEnemy zamiast wywoływać tę funkcję wielokrotnie.
  */
 export function getEnemyType(level: number, storyPath?: StoryPath): EnemyType {
-  // Poziomy 1-4: losowi wrogowie regularni (większa różnorodność)
-  if (level <= COMBAT_CONFIG.SKELETON_REPEATS + 1) {
-    const randomIndex = Math.floor(Math.random() * REGULAR_ENEMIES.length);
-    return REGULAR_ENEMIES[randomIndex];
+  // Poziomy 1-4: losowi wrogowie regularni
+  if (level <= REGULAR_ENEMY_MAX_LEVEL) {
+    const regularEnemies = getRegularEnemies();
+    if (regularEnemies.length === 0) {
+      console.error("No regular enemies found, falling back to first enemy");
+      return ENEMY_TYPES[0];
+    }
+    const randomIndex = Math.floor(Math.random() * regularEnemies.length);
+    return regularEnemies[randomIndex];
   }
 
-  // Bez ścieżki - klasyczna kolejność (fallback)
-  if (!storyPath) {
-    const classicPath = STORY_PATHS.find((p) => p.id === "classic")!;
-    storyPath = classicPath;
-  }
+  // Bez ścieżki - użyj domyślnej (classic)
+  const path = storyPath ?? getDefaultStoryPath();
 
-  // Poziom boss w ścieżce (poziom 5 = boss 0, poziom 6 = boss 1, itd.)
-  const bossIndex = level - COMBAT_CONFIG.SKELETON_REPEATS - 2;
+  // Oblicz indeks bossa używając nazwanej stałej
+  const bossIndex =
+    level - COMBAT_CONFIG.SKELETON_REPEATS - COMBAT_CONFIG.BOSS_LEVEL_OFFSET;
 
   // Ostatni boss (Overlord) - zawsze na końcu
-  if (bossIndex >= storyPath.bossOrder.length) {
-    return findEnemyById("overlord")!;
+  if (bossIndex >= path.bossOrder.length) {
+    return getOverlord();
   }
 
   // Boss ze ścieżki
-  const bossId = storyPath.bossOrder[bossIndex];
-  const boss = findEnemyById(bossId);
-  return boss || findEnemyById("overlord")!;
+  const bossId = path.bossOrder[bossIndex];
+  return findEnemyById(bossId);
 }
 
 /**
- * Oblicza zdrowie wroga na podstawie poziomu
+ * Oblicza zdrowie wroga na podstawie poziomu i typu wroga.
+ * Przyjmuje EnemyType bezpośrednio żeby uniknąć wielokrotnego losowania.
  */
-export function getEnemyHealth(level: number): number {
-  const enemy = getEnemyType(level);
+export function getEnemyHealthForType(level: number, enemy: EnemyType): number {
   const baseHealth = COMBAT_CONFIG.ENEMY_BASE_HEALTH;
-
-  // Zdrowie bazowane na skali typu wroga plus wzrost za poziom
   const levelBonus =
     Math.max(0, level - 1) * COMBAT_CONFIG.ENEMY_HEALTH_INCREMENT;
   return Math.floor(baseHealth * enemy.scale + levelBonus);
+}
+
+/**
+ * Oblicza zdrowie wroga na podstawie poziomu (legacy - używa losowego wroga dla poziomów 1-4).
+ * @deprecated Użyj getEnemyHealthForType z konkretnym typem wroga
+ */
+export function getEnemyHealth(level: number, storyPath?: StoryPath): number {
+  const enemy = getEnemyType(level, storyPath);
+  return getEnemyHealthForType(level, enemy);
 }
 
 // ============================================================================
@@ -801,12 +884,42 @@ export function saveGameData(data: SavedData): void {
 
 /**
  * Wczytuje dane gry z localStorage.
+ * Waliduje strukturę danych - jeśli dane są uszkodzone, zwraca null.
  */
 export function loadGameData(): SavedData | null {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved) as SavedData;
+      const parsed = JSON.parse(saved);
+      // Walidacja wymaganych pól
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        typeof parsed.highScore !== "number" ||
+        typeof parsed.selectedNinjaId !== "string" ||
+        typeof parsed.selectedDifficultyId !== "string"
+      ) {
+        console.warn("Corrupted save data, ignoring");
+        return null;
+      }
+      // Opcjonalna walidacja customDifficulty
+      if (parsed.customDifficulty) {
+        const cd = parsed.customDifficulty;
+        if (
+          typeof cd.maxNumber !== "number" ||
+          !Array.isArray(cd.operators) ||
+          typeof cd.disableIdleTimer !== "boolean"
+        ) {
+          console.warn("Corrupted customDifficulty, stripping from save");
+          parsed.customDifficulty = undefined;
+        }
+      }
+      // Opcjonalna walidacja storyPathId
+      if (parsed.storyPathId && typeof parsed.storyPathId !== "string") {
+        console.warn("Corrupted storyPathId, stripping from save");
+        parsed.storyPathId = undefined;
+      }
+      return parsed as SavedData;
     }
   } catch {
     console.warn("Nie można wczytać danych gry");
@@ -818,35 +931,59 @@ export function loadGameData(): SavedData | null {
  * Znajduje ninja po ID.
  */
 export function findNinjaById(id: string): NinjaCharacter {
-  return NINJAS.find((n) => n.id === id) || NINJAS[0];
+  const ninja = NINJAS.find((n) => n.id === id);
+  if (!ninja) {
+    console.warn(`Ninja "${id}" not found, falling back to ${NINJAS[0].id}`);
+    return NINJAS[0];
+  }
+  return ninja;
 }
 
 /**
  * Znajduje poziom trudności po ID.
  */
 export function findDifficultyById(id: string): DifficultyConfig {
-  return DIFFICULTIES.find((d) => d.id === id) || DIFFICULTIES[0];
+  const difficulty = DIFFICULTIES.find((d) => d.id === id);
+  if (!difficulty) {
+    console.warn(
+      `Difficulty "${id}" not found, falling back to ${DIFFICULTIES[0].id}`
+    );
+    return DIFFICULTIES[0];
+  }
+  return difficulty;
 }
 
 /**
  * Aktualizuje ustawienia trybu Custom.
- * Zwraca nową konfigurację trudności z zastosowanymi ustawieniami.
+ * Zapisuje ustawienia do localStorage i zwraca NOWĄ konfigurację.
+ * UWAGA: Ta funkcja NIE mutuje globalnej tablicy DIFFICULTIES.
  */
 export function updateCustomDifficulty(
   settings: CustomDifficultySettings
 ): DifficultyConfig {
-  const customDiff = DIFFICULTIES.find((d) => d.id === "custom");
-  if (!customDiff) {
+  const baseCustomDiff = DIFFICULTIES.find((d) => d.id === "custom");
+  if (!baseCustomDiff) {
     throw new Error("Custom difficulty not found");
   }
 
-  // Aktualizuj referencję w tablicy DIFFICULTIES
-  customDiff.maxNumber = settings.maxNumber;
-  customDiff.operators = settings.operators;
-  customDiff.disableIdleTimer = settings.disableIdleTimer;
-  customDiff.description = generateCustomDescription(settings);
+  // Zapisz ustawienia do localStorage
+  const savedData = loadGameData();
+  saveGameData({
+    highScore: savedData?.highScore ?? 0,
+    selectedNinjaId: savedData?.selectedNinjaId ?? "kai",
+    selectedDifficultyId: savedData?.selectedDifficultyId ?? "very-easy",
+    storyPathId: savedData?.storyPathId,
+    customDifficulty: settings,
+  });
 
-  return customDiff;
+  // Zwróć NOWY obiekt zamiast mutować istniejący
+  return {
+    ...baseCustomDiff,
+    maxNumber: settings.maxNumber,
+    operators: [...settings.operators], // kopia tablicy
+    disableIdleTimer: settings.disableIdleTimer,
+    description: generateCustomDescription(settings),
+  };
 }
 
 /**
@@ -923,8 +1060,14 @@ export function createInitialState(): GameState {
   // Oblicz max HP z bonusem ninja
   const maxHealth = COMBAT_CONFIG.PLAYER_MAX_HEALTH + ninja.healthBonus;
 
-  // Losuj ścieżkę fabularną na początek gry
-  const storyPath = getRandomStoryPath();
+  // Przywróć zapisaną ścieżkę lub losuj nową
+  const storyPath = savedData?.storyPathId
+    ? findStoryPathById(savedData.storyPathId)
+    : getRandomStoryPath();
+
+  // Wylosuj pierwszego wroga i policz jego zdrowie
+  const initialEnemy = getEnemyType(1, storyPath);
+  const initialEnemyHealth = getEnemyHealthForType(1, initialEnemy);
 
   return {
     currentNinja: ninja,
@@ -939,14 +1082,16 @@ export function createInitialState(): GameState {
     // Combat system
     playerHealth: maxHealth,
     maxPlayerHealth: maxHealth,
-    enemyHealth: getEnemyHealth(1),
-    maxEnemyHealth: getEnemyHealth(1),
+    enemyHealth: initialEnemyHealth,
+    maxEnemyHealth: initialEnemyHealth,
     isGameOver: false,
+    isVictory: false,
     lastAnswerTime: Date.now(),
     // Enemy progression
     enemyLevel: 1,
     enemiesDefeated: 0,
     storyPath,
+    currentEnemy: initialEnemy,
   };
 }
 
@@ -954,13 +1099,16 @@ export function createInitialState(): GameState {
  * Rozpoczyna nową rundę gry.
  */
 export function startGame(state: GameState): GameState {
-  const initialEnemyHealth = getEnemyHealth(1);
   // Oblicz max HP z bonusem ninja
   const maxHealth =
     COMBAT_CONFIG.PLAYER_MAX_HEALTH + state.currentNinja.healthBonus;
 
   // Nowa losowa ścieżka fabularna na każdą grę
   const storyPath = getRandomStoryPath();
+
+  // Wylosuj pierwszego wroga i policz jego zdrowie
+  const initialEnemy = getEnemyType(1, storyPath);
+  const initialEnemyHealth = getEnemyHealthForType(1, initialEnemy);
 
   return {
     ...state,
@@ -976,11 +1124,13 @@ export function startGame(state: GameState): GameState {
     enemyHealth: initialEnemyHealth,
     maxEnemyHealth: initialEnemyHealth,
     isGameOver: false,
+    isVictory: false,
     lastAnswerTime: Date.now(),
     // Reset enemy progression
     enemyLevel: 1,
     enemiesDefeated: 0,
     storyPath,
+    currentEnemy: initialEnemy,
   };
 }
 
@@ -998,11 +1148,12 @@ export function processAnswer(
   enemyAttacked: boolean;
   enemyDefeated: boolean;
   playerDefeated: boolean;
+  isVictory: boolean;
   damageDealt: number;
   damageTaken: number;
   newEnemyType: EnemyType | null;
 } {
-  if (!state.currentProblem || state.isGameOver) {
+  if (!state.currentProblem || state.isGameOver || state.isVictory) {
     return {
       state,
       isCorrect: false,
@@ -1011,13 +1162,18 @@ export function processAnswer(
       enemyAttacked: false,
       enemyDefeated: false,
       playerDefeated: false,
+      isVictory: false,
       damageDealt: 0,
       damageTaken: 0,
       newEnemyType: null,
     };
   }
 
-  const isCorrect = checkAnswer(state.currentProblem, userAnswer);
+  // Sanitize input - handle NaN, Infinity, -Infinity as wrong answer
+  const sanitizedAnswer = Number.isFinite(userAnswer) ? userAnswer : NaN;
+  const isCorrect =
+    Number.isFinite(sanitizedAnswer) &&
+    checkAnswer(state.currentProblem, sanitizedAnswer);
   const ninja = state.currentNinja;
 
   let newScore = state.score;
@@ -1033,6 +1189,8 @@ export function processAnswer(
   let damageTaken = 0;
   let enemyDefeated = false;
   let playerDefeated = false;
+  let isVictory = false;
+  let newEnemy = state.currentEnemy; // domyślnie ten sam wróg
 
   if (isCorrect) {
     // Bonus za serię: każda poprawna odpowiedź w serii daje +1 do mnożnika
@@ -1068,19 +1226,29 @@ export function processAnswer(
     if (newEnemyHealth <= 0) {
       enemyDefeated = true;
       newEnemiesDefeated++;
-      newEnemyLevel++;
 
-      // Nowy wróg z nowym zdrowiem
-      const nextEnemyHealth = getEnemyHealth(newEnemyLevel);
-      newEnemyHealth = nextEnemyHealth;
-      newMaxEnemyHealth = nextEnemyHealth;
+      // Sprawdź czy pokonaliśmy Overlorda (WYGRANA!)
+      if (state.currentEnemy.id === "overlord") {
+        isVictory = true;
+        // Bonus za pokonanie Overlorda
+        newScore += 500;
+        if (newScore > newHighScore) {
+          newHighScore = newScore;
+        }
+      } else {
+        // Następny wróg
+        newEnemyLevel++;
+        newEnemy = getEnemyType(newEnemyLevel, state.storyPath);
+        const nextEnemyHealth = getEnemyHealthForType(newEnemyLevel, newEnemy);
+        newEnemyHealth = nextEnemyHealth;
+        newMaxEnemyHealth = nextEnemyHealth;
 
-      // Bonus punktów za pokonanie wroga (więcej za bossów)
-      const enemy = getEnemyType(state.enemyLevel, state.storyPath);
-      const bossBonus = enemy.isBoss ? 100 : 50;
-      newScore += bossBonus;
-      if (newScore > newHighScore) {
-        newHighScore = newScore;
+        // Bonus punktów za pokonanie wroga (więcej za bossów)
+        const bossBonus = state.currentEnemy.isBoss ? 100 : 50;
+        newScore += bossBonus;
+        if (newScore > newHighScore) {
+          newHighScore = newScore;
+        }
       }
     }
   } else {
@@ -1106,25 +1274,29 @@ export function processAnswer(
     score: newScore,
     highScore: newHighScore,
     streak: newStreak,
-    currentProblem: playerDefeated
-      ? null
-      : generateUniqueProblem(state.difficulty, state.currentProblem),
+    currentProblem:
+      playerDefeated || isVictory
+        ? null
+        : generateUniqueProblem(state.difficulty, state.currentProblem),
     totalProblems: state.totalProblems + 1,
     correctAnswers: state.correctAnswers + (isCorrect ? 1 : 0),
     playerHealth: newPlayerHealth,
     enemyHealth: newEnemyHealth,
     maxEnemyHealth: newMaxEnemyHealth,
-    isGameOver: playerDefeated,
+    isGameOver: playerDefeated || isVictory,
+    isVictory,
     lastAnswerTime: Date.now(),
     enemyLevel: newEnemyLevel,
     enemiesDefeated: newEnemiesDefeated,
+    currentEnemy: newEnemy,
   };
 
-  // Zapisz postęp
+  // Zapisz postęp (włącznie ze ścieżką fabularną)
   saveGameData({
     highScore: newHighScore,
     selectedNinjaId: state.currentNinja.id,
     selectedDifficultyId: state.difficulty.id,
+    storyPathId: state.storyPath.id,
   });
 
   return {
@@ -1135,14 +1307,11 @@ export function processAnswer(
     enemyAttacked: !isCorrect,
     enemyDefeated,
     playerDefeated,
+    isVictory,
     damageDealt,
     damageTaken,
-    // Zwróć null jeśli pokonano Overlorda (ostatniego bossa) - koniec gry!
-    newEnemyType:
-      enemyDefeated &&
-      getEnemyType(state.enemyLevel, state.storyPath).id !== "overlord"
-        ? getEnemyType(newEnemyLevel, state.storyPath)
-        : null,
+    // Zwróć nowego wroga jeśli poprzedni pokonany (ale nie wygrana!)
+    newEnemyType: enemyDefeated && !isVictory ? newEnemy : null,
   };
 }
 
@@ -1159,7 +1328,11 @@ export function processIdleAttack(state: GameState): {
     return { state, attacked: false, damage: 0, playerDefeated: false };
   }
 
-  const damage = COMBAT_CONFIG.IDLE_ATTACK_DAMAGE;
+  // Apply ninja defense to idle damage (same as regular attacks)
+  const damage = Math.max(
+    1,
+    COMBAT_CONFIG.IDLE_ATTACK_DAMAGE - state.currentNinja.defense
+  );
   const newPlayerHealth = Math.max(0, state.playerHealth - damage);
   const playerDefeated = newPlayerHealth <= 0;
 
@@ -1224,6 +1397,7 @@ export function selectNinja(state: GameState, ninjaId: string): GameState {
     highScore: state.highScore,
     selectedNinjaId: ninja.id,
     selectedDifficultyId: state.difficulty.id,
+    storyPathId: state.storyPath.id,
   });
 
   return { ...state, currentNinja: ninja };
@@ -1231,12 +1405,43 @@ export function selectNinja(state: GameState, ninjaId: string): GameState {
 
 /**
  * Zmienia poziom trudności i automatycznie wybiera przypisanego ninja.
+ * Dla trybu "custom" aplikuje zapisane ustawienia.
  */
 export function selectDifficulty(
   state: GameState,
   difficultyId: string
 ): GameState {
-  const difficulty = findDifficultyById(difficultyId);
+  let difficulty = findDifficultyById(difficultyId);
+
+  // Dla trybu custom, aplikuj zapisane ustawienia
+  if (difficultyId === "custom") {
+    const customSettings = getCustomDifficultySettings();
+    difficulty = {
+      ...difficulty,
+      maxNumber: customSettings.maxNumber,
+      operators: [...customSettings.operators],
+      disableIdleTimer: customSettings.disableIdleTimer,
+      description: `${customSettings.operators
+        .map((op) => {
+          switch (op) {
+            case "+":
+              return "dodawanie";
+            case "-":
+              return "odejmowanie";
+            case "*":
+              return "mnożenie";
+            case "/":
+              return "dzielenie";
+            default:
+              return op;
+          }
+        })
+        .join(", ")} do ${customSettings.maxNumber}${
+        customSettings.disableIdleTimer ? ", bez timera" : ""
+      }`,
+    };
+  }
+
   // Automatycznie wybierz ninja przypisanego do tego poziomu trudności
   const ninja = getNinjaForDifficulty(difficultyId);
   // Oblicz nowe max HP z bonusem ninja
@@ -1246,6 +1451,7 @@ export function selectDifficulty(
     highScore: state.highScore,
     selectedNinjaId: ninja.id,
     selectedDifficultyId: difficulty.id,
+    storyPathId: state.storyPath.id,
   });
 
   return {

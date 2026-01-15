@@ -23,7 +23,6 @@ import {
   selectNinja,
   selectDifficulty,
   formatProblem,
-  getEnemyType,
   getIdleTimeout,
   getNinjaForDifficulty,
   updateCustomDifficulty,
@@ -1240,10 +1239,8 @@ function renderGameScreen(): void {
   updateDamageDisplay();
 
   ninjaAvatar.innerHTML = createNinjaAvatarSVG(gameState.currentNinja, 120);
-  const currentEnemyType = getEnemyType(
-    gameState.enemyLevel,
-    gameState.storyPath
-  );
+  // Używamy zbuforowanego currentEnemy zamiast getEnemyType (deterministyczne)
+  const currentEnemyType = gameState.currentEnemy;
   enemyAvatar.innerHTML = createEnemyAvatarSVG(currentEnemyType, 120);
   updateEnemyNameDisplay(currentEnemyType);
 
@@ -1839,10 +1836,8 @@ function handleSubmit(): void {
     // Spawn nowego wroga z animacją
     if (result.newEnemyType) {
       setTimeout(() => {
-        const newEnemyType = getEnemyType(
-          gameState.enemyLevel,
-          gameState.storyPath
-        );
+        // Używamy zbuforowanego currentEnemy ze state (już zaktualizowany w processAnswer)
+        const newEnemyType = gameState.currentEnemy;
 
         // Change epic background for new enemy!
         changeBackground(newEnemyType.id);
@@ -2046,10 +2041,8 @@ restartBtn.addEventListener("click", () => {
     gameState.currentNinja.color
   );
   updateHealthBars();
-  const initialEnemyType = getEnemyType(
-    gameState.enemyLevel,
-    gameState.storyPath
-  );
+  // Używamy zbuforowanego currentEnemy ze state
+  const initialEnemyType = gameState.currentEnemy;
   enemyAvatar.innerHTML = createEnemyAvatarSVG(initialEnemyType, 120);
   updateEnemyNameDisplay(initialEnemyType);
 
@@ -2092,10 +2085,8 @@ victoryRestartBtn.addEventListener("click", () => {
     gameState.currentNinja.color
   );
   updateHealthBars();
-  const initialEnemyType = getEnemyType(
-    gameState.enemyLevel,
-    gameState.storyPath
-  );
+  // Używamy zbuforowanego currentEnemy ze state
+  const initialEnemyType = gameState.currentEnemy;
   enemyAvatar.innerHTML = createEnemyAvatarSVG(initialEnemyType, 120);
   updateEnemyNameDisplay(initialEnemyType);
 
