@@ -64,6 +64,7 @@ export interface GameState {
   difficulty: DifficultyConfig;
   totalProblems: number;
   correctAnswers: number;
+  incorrectAnswers: number; // licznik błędnych odpowiedzi
   isGameActive: boolean;
   // Combat system
   playerHealth: number;
@@ -1078,6 +1079,7 @@ export function createInitialState(): GameState {
     difficulty,
     totalProblems: 0,
     correctAnswers: 0,
+    incorrectAnswers: 0,
     isGameActive: false,
     // Combat system
     playerHealth: maxHealth,
@@ -1117,6 +1119,7 @@ export function startGame(state: GameState): GameState {
     currentProblem: generateProblem(state.difficulty),
     totalProblems: 0,
     correctAnswers: 0,
+    incorrectAnswers: 0,
     isGameActive: true,
     // Reset combat
     playerHealth: maxHealth,
@@ -1274,12 +1277,16 @@ export function processAnswer(
     score: newScore,
     highScore: newHighScore,
     streak: newStreak,
+    // Nowe zadanie tylko przy poprawnej odpowiedzi - przy błędnej to samo zadanie
     currentProblem:
       playerDefeated || isVictory
         ? null
-        : generateUniqueProblem(state.difficulty, state.currentProblem),
-    totalProblems: state.totalProblems + 1,
+        : isCorrect
+        ? generateUniqueProblem(state.difficulty, state.currentProblem)
+        : state.currentProblem,
+    totalProblems: state.totalProblems + (isCorrect ? 1 : 0), // Licznik tylko przy poprawnych
     correctAnswers: state.correctAnswers + (isCorrect ? 1 : 0),
+    incorrectAnswers: state.incorrectAnswers + (isCorrect ? 0 : 1),
     playerHealth: newPlayerHealth,
     enemyHealth: newEnemyHealth,
     maxEnemyHealth: newMaxEnemyHealth,

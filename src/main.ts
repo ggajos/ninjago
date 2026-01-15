@@ -610,6 +610,8 @@ const speechBtn = $("#speech-btn");
 
 // Game screen
 const currentScore = $("#current-score");
+const correctCount = $("#correct-count");
+const incorrectCount = $("#incorrect-count");
 const currentEnemies = $("#current-enemies");
 const currentDamage = $("#current-damage");
 const backBtn = $("#back-btn");
@@ -1235,6 +1237,8 @@ function renderStartScreen(): void {
  */
 function renderGameScreen(): void {
   currentScore.textContent = String(gameState.score);
+  correctCount.textContent = String(gameState.correctAnswers);
+  incorrectCount.textContent = String(gameState.incorrectAnswers);
   currentEnemies.textContent = String(gameState.enemiesDefeated);
   updateDamageDisplay();
 
@@ -1815,8 +1819,10 @@ function handleSubmit(): void {
 
   showFeedback(result.isCorrect, result.message, correctAnswer);
 
-  // Aktualizuj wynik
+  // Aktualizuj wynik i liczniki
   currentScore.textContent = String(gameState.score);
+  correctCount.textContent = String(gameState.correctAnswers);
+  incorrectCount.textContent = String(gameState.incorrectAnswers);
   currentEnemies.textContent = String(gameState.enemiesDefeated);
   updateDamageDisplay();
 
