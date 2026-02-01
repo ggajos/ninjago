@@ -1025,6 +1025,10 @@ h2 {
   transition: all 0.3s ease;
 }
 
+.ninja-message:empty {
+  display: none;
+}
+
 .ninja-message.encouragement {
   background: rgba(74, 222, 128, 0.2);
   color: var(--success);
@@ -2606,5 +2610,167 @@ h2 {
 .action-backspace:active {
   background: var(--error) !important;
   transform: scale(0.95);
+}
+
+/* ============================================================================
+   PROGRESS TOWER - Wieża postępu do bossa
+   ============================================================================ */
+
+.progress-tower {
+  position: fixed;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-lg);
+  padding: 8px 4px;
+  z-index: 100;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tower-boss {
+  font-size: 1.4rem;
+  filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.6));
+  animation: bossWaiting 2s ease-in-out infinite;
+}
+
+@keyframes bossWaiting {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.tower-path {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  position: relative;
+  width: 100%;
+  margin: 4px 0;
+}
+
+/* Linia łącząca punkty */
+.tower-path::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, 
+    rgba(255, 215, 0, 0.3) 0%,
+    rgba(255, 255, 255, 0.2) 100%
+  );
+  transform: translateX(-50%);
+  z-index: 0;
+}
+
+.tower-point {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.tower-point.defeated {
+  background: var(--success);
+  border-color: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.tower-point.current {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 10px var(--accent-gold);
+  animation: currentPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes currentPulse {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-gold); }
+  50% { box-shadow: 0 0 16px var(--accent-gold), 0 0 24px var(--accent-gold); }
+}
+
+.tower-ninja {
+  font-size: 1.2rem;
+  z-index: 2;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.tower-ninja.climbing {
+  animation: ninjaClimb 0.5s ease-out;
+}
+
+@keyframes ninjaClimb {
+  0% { transform: translateY(20px) scale(0.8); }
+  50% { transform: translateY(-5px) scale(1.1); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.tower-start {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: -2px;
+}
+
+/* Ukryj wieżę gdy ekran gry jest ukryty */
+#game-screen.hidden .progress-tower {
+  display: none;
+}
+
+/* Mobile - nieco mniejsza */
+@media (max-width: 480px) {
+  .progress-tower {
+    width: 32px;
+    height: 160px;
+    right: 4px;
+    padding: 6px 3px;
+  }
+  
+  .tower-boss {
+    font-size: 1.2rem;
+  }
+  
+  .tower-ninja {
+    font-size: 1rem;
+  }
+  
+  .tower-point {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Duże ekrany */
+@media (min-width: 768px) {
+  .progress-tower {
+    width: 44px;
+    height: 240px;
+    right: 16px;
+  }
+  
+  .tower-boss {
+    font-size: 1.6rem;
+  }
+  
+  .tower-ninja {
+    font-size: 1.4rem;
+  }
+  
+  .tower-point {
+    width: 14px;
+    height: 14px;
+  }
 }
 

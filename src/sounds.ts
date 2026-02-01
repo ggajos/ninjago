@@ -17,7 +17,8 @@ export type SoundType =
   | "victory"
   | "gameOver"
   | "click"
-  | "start";
+  | "start"
+  | "heal";
 
 // ============================================================================
 // STAN
@@ -253,6 +254,41 @@ function playClickSound(ctx: AudioContext): void {
 }
 
 /**
+ * Dźwięk leczenia - delikatny, przyjemny chime
+ */
+function playHealSound(ctx: AudioContext): void {
+  const now = ctx.currentTime;
+
+  // Rosnące arpeggio (G-B-D) - przyjemny, "magiczny" efekt
+  const notes = [
+    { freq: 783.99, start: 0, duration: 0.2 }, // G5
+    { freq: 987.77, start: 0.08, duration: 0.2 }, // B5
+    { freq: 1174.66, start: 0.16, duration: 0.3 }, // D6
+  ];
+
+  notes.forEach((note) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = note.freq;
+
+    gain.gain.setValueAtTime(0, now + note.start);
+    gain.gain.linearRampToValueAtTime(0.1, now + note.start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(
+      0.01,
+      now + note.start + note.duration
+    );
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now + note.start);
+    osc.stop(now + note.start + note.duration + 0.1);
+  });
+}
+
+/**
  * Dźwięk startu gry - gotowy do walki
  */
 function playStartSound(ctx: AudioContext): void {
@@ -319,6 +355,9 @@ export function playSound(type: SoundType): void {
         break;
       case "start":
         playStartSound(ctx);
+        break;
+      case "heal":
+        playHealSound(ctx);
         break;
     }
   } catch (e) {

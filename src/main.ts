@@ -670,6 +670,11 @@ const customNoTimer = $<HTMLInputElement>("#custom-no-timer");
 const customSaveBtn = $("#custom-save-btn");
 const customCancelBtn = $("#custom-cancel-btn");
 
+// Progress tower
+const towerBoss = $("#tower-boss");
+const towerPath = $("#tower-path");
+const towerNinja = $("#tower-ninja");
+
 // ============================================================================
 // EPIC EFFECTS & STORY SYSTEM
 // ============================================================================
@@ -1270,6 +1275,110 @@ function renderGameScreen(): void {
 
   // Start idle timer
   startIdleTimer();
+
+  // Initialize progress tower
+  initProgressTower();
+}
+
+// ============================================================================
+// PROGRESS TOWER - Wieża postępu do bossa
+// ============================================================================
+
+/**
+ * Inicjalizuje wieżę postępu - tworzy punkty i ustawia bossa
+ */
+function initProgressTower(): void {
+  // Wyczyść poprzednie punkty
+  towerPath.innerHTML = "";
+
+  // Oblicz ile punktów potrzebujemy (wrogowie przed bossem)
+  const pointsCount = gameState.enemiesUntilBoss;
+
+  // Stwórz punkty (od góry do dołu - odwrotnie bo flex column)
+  for (let i = pointsCount - 1; i >= 0; i--) {
+    const point = document.createElement("div");
+    point.className = "tower-point";
+    point.dataset.index = String(i);
+    towerPath.appendChild(point);
+  }
+
+  // Ustaw emoji bossa
+  updateTowerBoss();
+
+  // Zaktualizuj stan punktów
+  updateProgressTower();
+}
+
+/**
+ * Aktualizuje wygląd wieży (punkty defeated/current)
+ */
+function updateProgressTower(): void {
+  const points = towerPath.querySelectorAll(".tower-point");
+  const currentIndex = gameState.currentSegmentEnemies;
+
+  points.forEach((point, i) => {
+    // Indeksy są odwrócone w DOM (od góry do dołu)
+    const actualIndex = points.length - 1 - i;
+
+    point.classList.remove("defeated", "current");
+
+    if (actualIndex < currentIndex) {
+      point.classList.add("defeated");
+    } else if (actualIndex === currentIndex) {
+      point.classList.add("current");
+    }
+  });
+
+  // Animacja ninja wspinającego się
+  towerNinja.classList.add("climbing");
+  setTimeout(() => towerNinja.classList.remove("climbing"), 500);
+}
+
+/**
+ * Aktualizuje emoji bossa na wieży
+ */
+function updateTowerBoss(): void {
+  const bossesDefeated = gameState.bossesDefeated;
+
+  // Znajdź następnego bossa
+  let bossEmoji = "🐉"; // domyślnie Overlord
+
+  if (bossesDefeated < gameState.storyPath.bossOrder.length) {
+    // Pokaż następnego bossa ze ścieżki
+    const nextBossId = gameState.storyPath.bossOrder[bossesDefeated];
+    const bossEnemy = findBossById(nextBossId);
+    if (bossEnemy) {
+      bossEmoji = bossEnemy.emoji;
+    }
+  }
+  // Jeśli bossesDefeated >= bossOrder.length, zostaje Overlord (🐉)
+
+  towerBoss.textContent = bossEmoji;
+}
+
+/**
+ * Pomocnicza funkcja do znalezienia bossa po ID
+ */
+function findBossById(id: string): EnemyType | undefined {
+  // Hardcoded emoji dla znanych bossów (zgodne z ENEMY_TYPES w game.ts)
+  const bossEmojis: Record<string, string> = {
+    "stone-warrior": "🗿",
+    serpentine: "🐍",
+    nindroid: "🤖",
+    ghost: "👻",
+    oni: "👹",
+    "dragon-hunter": "🐉",
+    "ice-samurai": "❄️",
+    "shadow-master": "🌑",
+    "pyro-viper": "🔥",
+    overlord: "😈",
+  };
+
+  if (bossEmojis[id]) {
+    return { emoji: bossEmojis[id] } as EnemyType;
+  }
+
+  return undefined;
 }
 
 /**
@@ -1781,7 +1890,10 @@ function handleSubmit(): void {
 
     // Pokaż heal
     if (result.isCorrect) {
-      setTimeout(() => showDamagePopup("player", 5, true), 300);
+      setTimeout(() => {
+        showDamagePopup("player", 5, true);
+        playSound("heal");
+      }, 300);
     }
 
     // Particle burst przy trafieniu
@@ -1850,11 +1962,23 @@ function handleSubmit(): void {
           enemyAvatar.innerHTML = createEnemyAvatarSVG(newEnemyType, 120);
           updateEnemyNameDisplay(newEnemyType);
           updateHealthBars();
+          // Reinicjalizuj wieżę dla nowego bossa
+          initProgressTower();
         } else {
           enemyAvatar.classList.add("enemy-spawn");
           enemyAvatar.innerHTML = createEnemyAvatarSVG(newEnemyType, 120);
           updateEnemyNameDisplay(newEnemyType);
           updateHealthBars();
+          
+          // Jeśli pokonaliśmy bossa, reinicjalizuj wieżę (nowa ilość wrogów do następnego bossa)
+          if (result.bossDefeated) {
+            initProgressTower();
+            // Pokaż efekt level up z nazwą pokonanego bossa
+            showLevelUpEffect(result.defeatedBossName || "BOSS");
+          } else {
+            // Aktualizuj wieżę postępu
+            updateProgressTower();
+          }
 
           // Pokaż nazwę nowego wroga
           ninjaMessage.textContent = `Nowy przeciwnik: ${newEnemyType.emoji} ${newEnemyType.name}!`;

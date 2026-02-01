@@ -79,6 +79,9 @@ export interface GameState {
   enemiesDefeated: number; // licznik pokonanych wrogów
   storyPath: StoryPath; // aktualna ścieżka fabularna
   currentEnemy: EnemyType; // aktualny wróg (cache - nie losujemy przy każdym renderze)
+  enemiesUntilBoss: number; // ile wrogów do następnego bossa (2-6, losowane)
+  currentSegmentEnemies: number; // ile wrogów pokonano w aktualnym segmencie
+  bossesDefeated: number; // ile bossów pokonano (do określenia następnego bossa)
 }
 
 /** Dane zapisywane w localStorage */
@@ -654,6 +657,7 @@ const REGULAR_ENEMY_MAX_LEVEL = COMBAT_CONFIG.SKELETON_REPEATS + 1;
  * Zwraca typ wroga na podstawie poziomu i ścieżki fabularnej.
  * UWAGA: Ta funkcja jest deterministyczna dla bossów, ale losowa dla regularnych wrogów.
  * Dla spójnego UI używaj state.currentEnemy zamiast wywoływać tę funkcję wielokrotnie.
+ * @deprecated Użyj getNextEnemy z pełnym stanem gry dla dynamicznych segmentów
  */
 export function getEnemyType(level: number, storyPath?: StoryPath): EnemyType {
   // Poziomy 1-4: losowi wrogowie regularni
@@ -682,6 +686,61 @@ export function getEnemyType(level: number, storyPath?: StoryPath): EnemyType {
   // Boss ze ścieżki
   const bossId = path.bossOrder[bossIndex];
   return findEnemyById(bossId);
+}
+
+/**
+ * Zwraca następnego wroga na podstawie stanu gry.
+ * Używa dynamicznego enemiesUntilBoss zamiast stałej SKELETON_REPEATS.
+ */
+export function getNextEnemy(state: GameState): {
+  enemy: EnemyType;
+  isBoss: boolean;
+  newSegment: boolean;
+  newEnemiesUntilBoss: number;
+  newCurrentSegmentEnemies: number;
+  newBossesDefeated: number;
+} {
+  const currentSegment = state.currentSegmentEnemies + 1; // +1 bo właśnie pokonaliśmy wroga
+
+  // Sprawdź czy czas na bossa
+  if (currentSegment >= state.enemiesUntilBoss) {
+    const bossesDefeated = state.bossesDefeated;
+
+    // Ostatni boss (Overlord) - zawsze na końcu
+    if (bossesDefeated >= state.storyPath.bossOrder.length) {
+      return {
+        enemy: getOverlord(),
+        isBoss: true,
+        newSegment: false,
+        newEnemiesUntilBoss: state.enemiesUntilBoss,
+        newCurrentSegmentEnemies: 0,
+        newBossesDefeated: bossesDefeated,
+      };
+    }
+
+    // Boss ze ścieżki
+    const bossId = state.storyPath.bossOrder[bossesDefeated];
+    return {
+      enemy: findEnemyById(bossId),
+      isBoss: true,
+      newSegment: false,
+      newEnemiesUntilBoss: state.enemiesUntilBoss,
+      newCurrentSegmentEnemies: 0,
+      newBossesDefeated: bossesDefeated,
+    };
+  }
+
+  // Regularny wróg
+  const regularEnemies = getRegularEnemies();
+  const randomIndex = Math.floor(Math.random() * regularEnemies.length);
+  return {
+    enemy: regularEnemies[randomIndex],
+    isBoss: false,
+    newSegment: false,
+    newEnemiesUntilBoss: state.enemiesUntilBoss,
+    newCurrentSegmentEnemies: currentSegment,
+    newBossesDefeated: state.bossesDefeated,
+  };
 }
 
 /**
@@ -720,6 +779,13 @@ function randomInt(max: number): number {
  */
 function randomChoice<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)];
+}
+
+/**
+ * Losuje ilość wrogów do następnego bossa (2-6)
+ */
+export function rollEnemiesUntilBoss(): number {
+  return Math.floor(Math.random() * 5) + 2; // 2-6
 }
 
 /**
@@ -1070,6 +1136,9 @@ export function createInitialState(): GameState {
   const initialEnemy = getEnemyType(1, storyPath);
   const initialEnemyHealth = getEnemyHealthForType(1, initialEnemy);
 
+  // Losuj ile wrogów do pierwszego bossa
+  const enemiesUntilBoss = rollEnemiesUntilBoss();
+
   return {
     currentNinja: ninja,
     score: 0,
@@ -1094,6 +1163,9 @@ export function createInitialState(): GameState {
     enemiesDefeated: 0,
     storyPath,
     currentEnemy: initialEnemy,
+    enemiesUntilBoss,
+    currentSegmentEnemies: 0,
+    bossesDefeated: 0,
   };
 }
 
@@ -1111,6 +1183,9 @@ export function startGame(state: GameState): GameState {
   // Wylosuj pierwszego wroga i policz jego zdrowie
   const initialEnemy = getEnemyType(1, storyPath);
   const initialEnemyHealth = getEnemyHealthForType(1, initialEnemy);
+
+  // Losuj ile wrogów do pierwszego bossa
+  const enemiesUntilBoss = rollEnemiesUntilBoss();
 
   return {
     ...state,
@@ -1134,6 +1209,9 @@ export function startGame(state: GameState): GameState {
     enemiesDefeated: 0,
     storyPath,
     currentEnemy: initialEnemy,
+    enemiesUntilBoss,
+    currentSegmentEnemies: 0,
+    bossesDefeated: 0,
   };
 }
 
@@ -1150,6 +1228,8 @@ export function processAnswer(
   playerAttacked: boolean;
   enemyAttacked: boolean;
   enemyDefeated: boolean;
+  bossDefeated: boolean;
+  defeatedBossName: string | null;
   playerDefeated: boolean;
   isVictory: boolean;
   damageDealt: number;
@@ -1164,6 +1244,8 @@ export function processAnswer(
       playerAttacked: false,
       enemyAttacked: false,
       enemyDefeated: false,
+      bossDefeated: false,
+      defeatedBossName: null,
       playerDefeated: false,
       isVictory: false,
       damageDealt: 0,
@@ -1187,10 +1269,15 @@ export function processAnswer(
   let newMaxEnemyHealth = state.maxEnemyHealth;
   let newEnemyLevel = state.enemyLevel;
   let newEnemiesDefeated = state.enemiesDefeated;
+  let newCurrentSegmentEnemies = state.currentSegmentEnemies;
+  let newEnemiesUntilBoss = state.enemiesUntilBoss;
+  let newBossesDefeated = state.bossesDefeated;
   let message: string;
   let damageDealt = 0;
   let damageTaken = 0;
   let enemyDefeated = false;
+  let bossDefeated = false;
+  let defeatedBossName: string | null = null;
   let playerDefeated = false;
   let isVictory = false;
   let newEnemy = state.currentEnemy; // domyślnie ten sam wróg
@@ -1239,9 +1326,45 @@ export function processAnswer(
           newHighScore = newScore;
         }
       } else {
-        // Następny wróg
+        // Następny wróg - używamy nowej logiki z dynamicznym segmentem
         newEnemyLevel++;
-        newEnemy = getEnemyType(newEnemyLevel, state.storyPath);
+
+        // Jeśli pokonaliśmy bossa, resetuj segment i losuj nową ilość wrogów
+        if (state.currentEnemy.isBoss) {
+          bossDefeated = true;
+          defeatedBossName = state.currentEnemy.name;
+          newBossesDefeated++;
+          newCurrentSegmentEnemies = 0; // Reset - zaczynamy nowy segment od 0
+          newEnemiesUntilBoss = rollEnemiesUntilBoss();
+          
+          // Po pokonaniu bossa: następny wróg to ZAWSZE regularny wróg
+          // (nie wywołujemy getNextEnemy bo to zacząłoby liczyć od 1)
+          const regularEnemies = ENEMY_TYPES.filter((e) => !e.isBoss);
+          const randomIndex = Math.floor(Math.random() * regularEnemies.length);
+          newEnemy = regularEnemies[randomIndex];
+        } else {
+          // Pokonaliśmy regularnego wroga - inkrementujemy licznik
+          newCurrentSegmentEnemies++;
+          
+          // Sprawdź czy czas na bossa
+          if (newCurrentSegmentEnemies >= newEnemiesUntilBoss) {
+            // Następny wróg to boss
+            if (newBossesDefeated >= state.storyPath.bossOrder.length) {
+              // Overlord!
+              newEnemy = ENEMY_TYPES.find((e) => e.id === "overlord") ?? ENEMY_TYPES[0];
+            } else {
+              // Boss ze ścieżki
+              const bossId = state.storyPath.bossOrder[newBossesDefeated];
+              newEnemy = findEnemyById(bossId);
+            }
+          } else {
+            // Regularny wróg
+            const regularEnemies = ENEMY_TYPES.filter((e) => !e.isBoss);
+            const randomIndex = Math.floor(Math.random() * regularEnemies.length);
+            newEnemy = regularEnemies[randomIndex];
+          }
+        }
+
         const nextEnemyHealth = getEnemyHealthForType(newEnemyLevel, newEnemy);
         newEnemyHealth = nextEnemyHealth;
         newMaxEnemyHealth = nextEnemyHealth;
@@ -1296,6 +1419,9 @@ export function processAnswer(
     enemyLevel: newEnemyLevel,
     enemiesDefeated: newEnemiesDefeated,
     currentEnemy: newEnemy,
+    enemiesUntilBoss: newEnemiesUntilBoss,
+    currentSegmentEnemies: newCurrentSegmentEnemies,
+    bossesDefeated: newBossesDefeated,
   };
 
   // Zapisz postęp (włącznie ze ścieżką fabularną)
@@ -1313,6 +1439,8 @@ export function processAnswer(
     playerAttacked: isCorrect,
     enemyAttacked: !isCorrect,
     enemyDefeated,
+    bossDefeated,
+    defeatedBossName,
     playerDefeated,
     isVictory,
     damageDealt,
