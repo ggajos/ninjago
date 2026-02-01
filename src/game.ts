@@ -30,8 +30,7 @@ export interface NinjaCharacter {
   avatar: string; // ścieżka do SVG
   encouragements: string[]; // zachęty po poprawnej odpowiedzi
   comforts: string[]; // pocieszenia po błędnej odpowiedzi
-  // Powiązanie z poziomem trudności i statystyki bojowe
-  difficultyId: string;
+  // Statystyki bojowe
   abilityName: string;
   abilityDescription: string;
   attackBonus: number; // bonus do obrażeń
@@ -42,16 +41,11 @@ export interface NinjaCharacter {
   idleTimeBonus: number; // bonus czasu (ms) na odpowiedź
 }
 
-/** Konfiguracja poziomu trudności */
-export interface DifficultyConfig {
-  id: string;
-  name: string;
-  namePolish: string;
+/** Ustawienia gry (zawsze tryb własny) */
+export interface GameSettings {
   maxNumber: number;
   operators: MathOperator[];
-  description: string;
   disableIdleTimer: boolean;
-  isCustom?: boolean; // czy to tryb niestandardowy
 }
 
 /** Stan gry */
@@ -61,7 +55,7 @@ export interface GameState {
   highScore: number;
   streak: number; // seria poprawnych odpowiedzi
   currentProblem: MathProblem | null;
-  difficulty: DifficultyConfig;
+  settings: GameSettings;
   totalProblems: number;
   correctAnswers: number;
   incorrectAnswers: number; // licznik błędnych odpowiedzi
@@ -88,16 +82,8 @@ export interface GameState {
 export interface SavedData {
   highScore: number;
   selectedNinjaId: string;
-  selectedDifficultyId: string;
-  customDifficulty?: CustomDifficultySettings;
+  gameSettings: GameSettings;
   storyPathId?: StoryPathId; // persystencja ścieżki fabularnej
-}
-
-/** Ustawienia niestandardowego poziomu trudności */
-export interface CustomDifficultySettings {
-  maxNumber: number;
-  operators: MathOperator[];
-  disableIdleTimer: boolean;
 }
 
 // ============================================================================
@@ -123,8 +109,7 @@ export const NINJAS: NinjaCharacter[] = [
       "Spróbuj jeszcze raz, wojowniku!",
       "Każdy ninja się uczy!",
     ],
-    // Bardzo trudny - Moc Ognia
-    difficultyId: "very-hard",
+    // Moc Ognia
     abilityName: "Moc Ognia",
     abilityDescription: "+5 obrażeń, +1 bonus za serię",
     attackBonus: 5,
@@ -152,8 +137,7 @@ export const NINJAS: NinjaCharacter[] = [
       "Spróbuj jeszcze! Będzie super!",
       "Nie martw się, dasz radę!",
     ],
-    // Trudny - Błyskawica
-    difficultyId: "hard",
+    // Błyskawica
     abilityName: "Błyskawica",
     abilityDescription: "+3s czasu, +1 bonus za serię",
     attackBonus: 0,
@@ -181,8 +165,7 @@ export const NINJAS: NinjaCharacter[] = [
       "Ziemia jest cierpliwa, Ty też bądź!",
       "Każda góra zaczyna się od kamyka!",
     ],
-    // Średni - Kamienna Zbroja
-    difficultyId: "medium",
+    // Kamienna Zbroja
     abilityName: "Kamienna Zbroja",
     abilityDescription: "+10 HP, -2 otrzymanych obrażeń",
     attackBonus: 0,
@@ -210,8 +193,7 @@ export const NINJAS: NinjaCharacter[] = [
       "Spokojnie, oblicz jeszcze raz.",
       "Każdy błąd to nauka!",
     ],
-    // Łatwy - Lodowa Tarcza
-    difficultyId: "easy",
+    // Lodowa Tarcza
     abilityName: "Lodowa Tarcza",
     abilityDescription: "+1s czasu, +1 regeneracji HP",
     attackBonus: 0,
@@ -239,8 +221,7 @@ export const NINJAS: NinjaCharacter[] = [
       "Energia wraca! Spróbuj jeszcze!",
       "Wierzę w Ciebie, wojowniku!",
     ],
-    // Mistrz - Złota Moc (wszystkie bonusy!)
-    difficultyId: "master",
+    // Złota Moc (wszystkie bonusy!)
     abilityName: "Złota Moc",
     abilityDescription: "+3 obrażeń, +10 HP, +2 regen, +1 seria",
     attackBonus: 3,
@@ -268,8 +249,7 @@ export const NINJAS: NinjaCharacter[] = [
       "Płyń dalej, nie poddawaj się!",
       "Każda kropla się liczy!",
     ],
-    // Bardzo łatwy - Fala Uzdrowienia (bez timera!)
-    difficultyId: "very-easy",
+    // Fala Uzdrowienia (bez timera!)
     abilityName: "Fala Uzdrowienia",
     abilityDescription: "+2 regeneracji HP, bez limitu czasu!",
     attackBonus: 0,
@@ -282,66 +262,14 @@ export const NINJAS: NinjaCharacter[] = [
 ];
 
 // ============================================================================
-// STAŁE - POZIOMY TRUDNOŚCI
+// DOMYŚLNE USTAWIENIA GRY
 // ============================================================================
 
-export const DIFFICULTIES: DifficultyConfig[] = [
-  {
-    id: "very-easy",
-    name: "Very Easy",
-    namePolish: "Bardzo łatwy",
-    maxNumber: 5,
-    operators: ["+", "-"],
-    description: "Dodawanie i odejmowanie do 5",
-    disableIdleTimer: true,
-  },
-  {
-    id: "easy",
-    name: "Easy",
-    namePolish: "Łatwy",
-    maxNumber: 10,
-    operators: ["+", "-"],
-    description: "Dodawanie i odejmowanie do 10",
-    disableIdleTimer: false,
-  },
-  {
-    id: "medium",
-    name: "Medium",
-    namePolish: "Średni",
-    maxNumber: 20,
-    operators: ["+", "-"],
-    description: "Dodawanie i odejmowanie do 20",
-    disableIdleTimer: false,
-  },
-  {
-    id: "hard",
-    name: "Hard",
-    namePolish: "Trudny",
-    maxNumber: 35,
-    operators: ["+", "-"],
-    description: "Dodawanie i odejmowanie do 35",
-    disableIdleTimer: false,
-  },
-  {
-    id: "very-hard",
-    name: "Very Hard",
-    namePolish: "Bardzo trudny",
-    maxNumber: 50,
-    operators: ["+", "-"],
-    description: "Dodawanie i odejmowanie do 50",
-    disableIdleTimer: false,
-  },
-  {
-    id: "custom",
-    name: "Custom",
-    namePolish: "Własny",
-    maxNumber: 10,
-    operators: ["+", "-"],
-    description: "Dostosuj ustawienia",
-    disableIdleTimer: false,
-    isCustom: true,
-  },
-];
+export const DEFAULT_SETTINGS: GameSettings = {
+  maxNumber: 10,
+  operators: ["+", "-"],
+  disableIdleTimer: false,
+};
 
 // ============================================================================
 // KLUCZE LOCALSTORAGE
@@ -864,22 +792,22 @@ export function generateDivisionProblem(maxNumber: number): MathProblem {
 }
 
 /**
- * Generuje zadanie zgodne z konfiguracją trudności.
+ * Generuje zadanie zgodne z ustawieniami gry.
  */
-export function generateProblem(difficulty: DifficultyConfig): MathProblem {
-  const operator = randomChoice(difficulty.operators);
+export function generateProblem(settings: GameSettings): MathProblem {
+  const operator = randomChoice(settings.operators);
 
   switch (operator) {
     case "+":
-      return generateAdditionProblem(difficulty.maxNumber);
+      return generateAdditionProblem(settings.maxNumber);
     case "-":
-      return generateSubtractionProblem(difficulty.maxNumber);
+      return generateSubtractionProblem(settings.maxNumber);
     case "*":
-      return generateMultiplicationProblem(difficulty.maxNumber);
+      return generateMultiplicationProblem(settings.maxNumber);
     case "/":
-      return generateDivisionProblem(difficulty.maxNumber);
+      return generateDivisionProblem(settings.maxNumber);
     default:
-      return generateAdditionProblem(difficulty.maxNumber);
+      return generateAdditionProblem(settings.maxNumber);
   }
 }
 
@@ -900,15 +828,15 @@ function isSameProblem(a: MathProblem | null, b: MathProblem): boolean {
  * Próbuje maksymalnie 10 razy, potem zwraca cokolwiek.
  */
 export function generateUniqueProblem(
-  difficulty: DifficultyConfig,
+  settings: GameSettings,
   previousProblem: MathProblem | null
 ): MathProblem {
-  let newProblem = generateProblem(difficulty);
+  let newProblem = generateProblem(settings);
   let attempts = 0;
   const maxAttempts = 10;
 
   while (isSameProblem(previousProblem, newProblem) && attempts < maxAttempts) {
-    newProblem = generateProblem(difficulty);
+    newProblem = generateProblem(settings);
     attempts++;
   }
 
@@ -963,22 +891,24 @@ export function loadGameData(): SavedData | null {
         typeof parsed !== "object" ||
         parsed === null ||
         typeof parsed.highScore !== "number" ||
-        typeof parsed.selectedNinjaId !== "string" ||
-        typeof parsed.selectedDifficultyId !== "string"
+        typeof parsed.selectedNinjaId !== "string"
       ) {
         console.warn("Corrupted save data, ignoring");
         return null;
       }
-      // Opcjonalna walidacja customDifficulty
-      if (parsed.customDifficulty) {
-        const cd = parsed.customDifficulty;
+      // Walidacja gameSettings (z domyślnymi wartościami dla migracji)
+      if (!parsed.gameSettings || typeof parsed.gameSettings !== "object") {
+        // Migracja ze starego formatu - użyj domyślnych ustawień
+        parsed.gameSettings = { ...DEFAULT_SETTINGS };
+      } else {
+        const gs = parsed.gameSettings;
         if (
-          typeof cd.maxNumber !== "number" ||
-          !Array.isArray(cd.operators) ||
-          typeof cd.disableIdleTimer !== "boolean"
+          typeof gs.maxNumber !== "number" ||
+          !Array.isArray(gs.operators) ||
+          typeof gs.disableIdleTimer !== "boolean"
         ) {
-          console.warn("Corrupted customDifficulty, stripping from save");
-          parsed.customDifficulty = undefined;
+          console.warn("Corrupted gameSettings, using defaults");
+          parsed.gameSettings = { ...DEFAULT_SETTINGS };
         }
       }
       // Opcjonalna walidacja storyPathId
@@ -1007,101 +937,27 @@ export function findNinjaById(id: string): NinjaCharacter {
 }
 
 /**
- * Znajduje poziom trudności po ID.
+ * Pobiera aktualne ustawienia gry.
  */
-export function findDifficultyById(id: string): DifficultyConfig {
-  const difficulty = DIFFICULTIES.find((d) => d.id === id);
-  if (!difficulty) {
-    console.warn(
-      `Difficulty "${id}" not found, falling back to ${DIFFICULTIES[0].id}`
-    );
-    return DIFFICULTIES[0];
+export function getGameSettings(): GameSettings {
+  const savedData = loadGameData();
+  if (savedData?.gameSettings) {
+    return savedData.gameSettings;
   }
-  return difficulty;
+  return { ...DEFAULT_SETTINGS };
 }
 
 /**
- * Aktualizuje ustawienia trybu Custom.
- * Zapisuje ustawienia do localStorage i zwraca NOWĄ konfigurację.
- * UWAGA: Ta funkcja NIE mutuje globalnej tablicy DIFFICULTIES.
+ * Zapisuje ustawienia gry.
  */
-export function updateCustomDifficulty(
-  settings: CustomDifficultySettings
-): DifficultyConfig {
-  const baseCustomDiff = DIFFICULTIES.find((d) => d.id === "custom");
-  if (!baseCustomDiff) {
-    throw new Error("Custom difficulty not found");
-  }
-
-  // Zapisz ustawienia do localStorage
+export function updateGameSettings(settings: GameSettings): void {
   const savedData = loadGameData();
   saveGameData({
     highScore: savedData?.highScore ?? 0,
     selectedNinjaId: savedData?.selectedNinjaId ?? "kai",
-    selectedDifficultyId: savedData?.selectedDifficultyId ?? "very-easy",
+    gameSettings: settings,
     storyPathId: savedData?.storyPathId,
-    customDifficulty: settings,
   });
-
-  // Zwróć NOWY obiekt zamiast mutować istniejący
-  return {
-    ...baseCustomDiff,
-    maxNumber: settings.maxNumber,
-    operators: [...settings.operators], // kopia tablicy
-    disableIdleTimer: settings.disableIdleTimer,
-    description: generateCustomDescription(settings),
-  };
-}
-
-/**
- * Generuje opis dla trybu Custom na podstawie ustawień.
- */
-function generateCustomDescription(settings: CustomDifficultySettings): string {
-  const ops = settings.operators
-    .map((op) => {
-      switch (op) {
-        case "+":
-          return "dodawanie";
-        case "-":
-          return "odejmowanie";
-        case "*":
-          return "mnożenie";
-        case "/":
-          return "dzielenie";
-        default:
-          return op;
-      }
-    })
-    .join(", ");
-  const timer = settings.disableIdleTimer ? ", bez timera" : "";
-  return `${ops} do ${settings.maxNumber}${timer}`;
-}
-
-/**
- * Pobiera aktualne ustawienia trybu Custom.
- */
-export function getCustomDifficultySettings(): CustomDifficultySettings {
-  const savedData = loadGameData();
-  if (savedData?.customDifficulty) {
-    return savedData.customDifficulty;
-  }
-  // Domyślne ustawienia
-  return {
-    maxNumber: 10,
-    operators: ["+", "-"],
-    disableIdleTimer: false,
-  };
-}
-
-/**
- * Znajduje ninja przypisanego do danego poziomu trudności.
- * Dla trybu custom zwraca Lloyda (Zielony Ninja - uniwersalny).
- */
-export function getNinjaForDifficulty(difficultyId: string): NinjaCharacter {
-  if (difficultyId === "custom") {
-    return findNinjaById("lloyd"); // Lloyd dla custom mode
-  }
-  return NINJAS.find((n) => n.difficultyId === difficultyId) || NINJAS[0];
 }
 
 // ============================================================================
@@ -1114,13 +970,13 @@ export function getNinjaForDifficulty(difficultyId: string): NinjaCharacter {
 export function createInitialState(): GameState {
   const savedData = loadGameData();
 
-  // Najpierw ustal poziom trudności
-  const difficulty = savedData
-    ? findDifficultyById(savedData.selectedDifficultyId)
-    : DIFFICULTIES[0]; // Bardzo łatwy jako domyślny
+  // Ustal ustawienia gry
+  const settings = savedData?.gameSettings ?? { ...DEFAULT_SETTINGS };
 
-  // Ninja jest automatycznie przypisany do poziomu trudności
-  const ninja = getNinjaForDifficulty(difficulty.id);
+  // Ustal ninja
+  const ninja = savedData
+    ? findNinjaById(savedData.selectedNinjaId)
+    : NINJAS[0]; // Kai jako domyślny
 
   const highScore = savedData?.highScore || 0;
 
@@ -1145,7 +1001,7 @@ export function createInitialState(): GameState {
     highScore,
     streak: 0,
     currentProblem: null,
-    difficulty,
+    settings,
     totalProblems: 0,
     correctAnswers: 0,
     incorrectAnswers: 0,
@@ -1191,7 +1047,7 @@ export function startGame(state: GameState): GameState {
     ...state,
     score: 0,
     streak: 0,
-    currentProblem: generateProblem(state.difficulty),
+    currentProblem: generateProblem(state.settings),
     totalProblems: 0,
     correctAnswers: 0,
     incorrectAnswers: 0,
@@ -1405,7 +1261,7 @@ export function processAnswer(
       playerDefeated || isVictory
         ? null
         : isCorrect
-        ? generateUniqueProblem(state.difficulty, state.currentProblem)
+        ? generateUniqueProblem(state.settings, state.currentProblem)
         : state.currentProblem,
     totalProblems: state.totalProblems + (isCorrect ? 1 : 0), // Licznik tylko przy poprawnych
     correctAnswers: state.correctAnswers + (isCorrect ? 1 : 0),
@@ -1428,7 +1284,7 @@ export function processAnswer(
   saveGameData({
     highScore: newHighScore,
     selectedNinjaId: state.currentNinja.id,
-    selectedDifficultyId: state.difficulty.id,
+    gameSettings: state.settings,
     storyPathId: state.storyPath.id,
   });
 
@@ -1511,8 +1367,8 @@ export function getIdleTimeout(
  */
 export function shouldIdleAttack(state: GameState): boolean {
   if (!state.isGameActive || state.isGameOver) return false;
-  // Timer wyłączony dla poziomu "Bardzo łatwy"
-  if (state.difficulty.disableIdleTimer) return false;
+  // Timer wyłączony w ustawieniach
+  if (state.settings.disableIdleTimer) return false;
 
   const elapsed = Date.now() - state.lastAnswerTime;
   const timeout = getIdleTimeout(
@@ -1531,7 +1387,7 @@ export function selectNinja(state: GameState, ninjaId: string): GameState {
   saveGameData({
     highScore: state.highScore,
     selectedNinjaId: ninja.id,
-    selectedDifficultyId: state.difficulty.id,
+    gameSettings: state.settings,
     storyPathId: state.storyPath.id,
   });
 
@@ -1539,62 +1395,19 @@ export function selectNinja(state: GameState, ninjaId: string): GameState {
 }
 
 /**
- * Zmienia poziom trudności i automatycznie wybiera przypisanego ninja.
- * Dla trybu "custom" aplikuje zapisane ustawienia.
+ * Aktualizuje ustawienia gry w stanie.
  */
-export function selectDifficulty(
-  state: GameState,
-  difficultyId: string
-): GameState {
-  let difficulty = findDifficultyById(difficultyId);
-
-  // Dla trybu custom, aplikuj zapisane ustawienia
-  if (difficultyId === "custom") {
-    const customSettings = getCustomDifficultySettings();
-    difficulty = {
-      ...difficulty,
-      maxNumber: customSettings.maxNumber,
-      operators: [...customSettings.operators],
-      disableIdleTimer: customSettings.disableIdleTimer,
-      description: `${customSettings.operators
-        .map((op) => {
-          switch (op) {
-            case "+":
-              return "dodawanie";
-            case "-":
-              return "odejmowanie";
-            case "*":
-              return "mnożenie";
-            case "/":
-              return "dzielenie";
-            default:
-              return op;
-          }
-        })
-        .join(", ")} do ${customSettings.maxNumber}${
-        customSettings.disableIdleTimer ? ", bez timera" : ""
-      }`,
-    };
-  }
-
-  // Automatycznie wybierz ninja przypisanego do tego poziomu trudności
-  const ninja = getNinjaForDifficulty(difficultyId);
-  // Oblicz nowe max HP z bonusem ninja
-  const maxHealth = COMBAT_CONFIG.PLAYER_MAX_HEALTH + ninja.healthBonus;
-
+export function applySettings(state: GameState, settings: GameSettings): GameState {
   saveGameData({
     highScore: state.highScore,
-    selectedNinjaId: ninja.id,
-    selectedDifficultyId: difficulty.id,
+    selectedNinjaId: state.currentNinja.id,
+    gameSettings: settings,
     storyPathId: state.storyPath.id,
   });
 
   return {
     ...state,
-    difficulty,
-    currentNinja: ninja,
-    maxPlayerHealth: maxHealth,
-    playerHealth: maxHealth,
+    settings,
   };
 }
 

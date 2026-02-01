@@ -295,9 +295,75 @@ h2 {
 
 .ninja-selection {
   width: 100%;
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-lg);
 }
 
+.ninja-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.ninja-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 3px solid transparent;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  text-align: center;
+}
+
+.ninja-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+  border-color: var(--ninja-color);
+}
+
+.ninja-btn.selected {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--ninja-color);
+  box-shadow: 0 0 20px var(--ninja-color);
+}
+
+.ninja-btn-avatar {
+  transition: transform 0.3s ease;
+}
+
+.ninja-btn:hover .ninja-btn-avatar {
+  transform: rotate(-5deg) scale(1.1);
+}
+
+.ninja-btn-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ninja-btn-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.ninja-btn-element {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.ninja-btn-ability {
+  font-size: 0.65rem;
+  color: var(--accent-gold);
+  font-style: italic;
+}
+
+/* Legacy ninja-card styles (for reference) */
 .ninja-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -351,7 +417,7 @@ h2 {
 }
 
 /* ============================================================================
-   DIFFICULTY SELECTION (with integrated ninja selection)
+   DIFFICULTY SELECTION (now separate from ninja selection)
    ============================================================================ */
 
 .difficulty-selection {
@@ -361,9 +427,9 @@ h2 {
 
 .difficulty-buttons {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-md);
-  max-width: 900px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-sm);
+  max-width: 700px;
   margin: 0 auto;
 }
 
@@ -375,61 +441,39 @@ h2 {
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
-  text-align: left;
+  text-align: center;
 }
 
 .difficulty-btn:hover {
   background: rgba(255, 255, 255, 0.1);
-  border-color: var(--ninja-color, var(--current-ninja-color));
+  border-color: var(--current-ninja-color);
   transform: scale(1.02);
 }
 
 .difficulty-btn.selected {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
-  border-color: var(--ninja-color, var(--current-ninja-color));
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2), 0 0 40px var(--ninja-color, var(--current-ninja-color));
-}
-
-.difficulty-ninja-avatar {
-  flex-shrink: 0;
-  transition: transform 0.3s ease;
-}
-
-.difficulty-btn:hover .difficulty-ninja-avatar {
-  transform: rotate(-5deg) scale(1.1);
+  border-color: var(--current-ninja-color);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2), 0 0 40px var(--current-ninja-color);
 }
 
 .difficulty-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  flex: 1;
+  gap: 4px;
+  align-items: center;
 }
 
 .difficulty-name {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--text-primary);
-}
-
-.difficulty-ninja-name {
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--ninja-color, var(--current-ninja-color));
 }
 
 .difficulty-desc {
   font-size: 0.8rem;
   color: var(--text-secondary);
-}
-
-.difficulty-ability {
-  font-size: 0.75rem;
-  color: var(--accent-gold);
-  font-style: italic;
 }
 
 .no-timer-badge {

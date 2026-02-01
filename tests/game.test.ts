@@ -8,14 +8,13 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import type {
   MathProblem,
-  DifficultyConfig,
-  CustomDifficultySettings,
+  GameSettings,
   StoryPathId,
 } from "../src/game";
 import {
   // Stałe
   NINJAS,
-  DIFFICULTIES,
+  DEFAULT_SETTINGS,
   ENEMY_TYPES,
   STORY_PATHS,
   COMBAT_CONFIG,
@@ -35,12 +34,7 @@ import {
   startGame,
   processAnswer,
   selectNinja,
-  selectDifficulty,
-
-  // Custom difficulty
-  updateCustomDifficulty,
-  getCustomDifficultySettings,
-  getNinjaForDifficulty,
+  applySettings,
 
   // Story paths
   getRandomStoryPath,
@@ -54,7 +48,6 @@ import {
   saveGameData,
   loadGameData,
   findNinjaById,
-  findDifficultyById,
 } from "../src/game";
 
 // ============================================================================
@@ -110,26 +103,26 @@ describe("Math Problem Generation", () => {
   });
 
   describe("generateProblem", () => {
-    it("should generate problems based on difficulty config", () => {
-      const easyDifficulty: DifficultyConfig = {
-        id: "easy",
-        name: "Easy",
-        namePolish: "Łatwy",
+    it("should generate problems based on settings config", () => {
+      const easySettings: GameSettings = {
         maxNumber: 10,
         operators: ["+"],
-        description: "Tylko dodawanie",
         disableIdleTimer: false,
       };
 
-      const problem = generateProblem(easyDifficulty);
+      const problem = generateProblem(easySettings);
       expect(problem.operator).toBe("+");
     });
 
-    it("should respect difficulty operators", () => {
-      const easyDifficulty = DIFFICULTIES[0]; // Łatwy - dodawanie i odejmowanie
+    it("should respect settings operators", () => {
+      const settings: GameSettings = {
+        maxNumber: 10,
+        operators: ["+", "-"],
+        disableIdleTimer: false,
+      };
 
       for (let i = 0; i < 50; i++) {
-        const problem = generateProblem(easyDifficulty);
+        const problem = generateProblem(settings);
         expect(["+", "-"]).toContain(problem.operator);
       }
     });
@@ -210,17 +203,19 @@ describe("Game State Management", () => {
       expect(state.isGameActive).toBe(false);
       expect(state.currentProblem).toBeNull();
       expect(state.currentNinja).toBeDefined();
-      expect(state.difficulty).toBeDefined();
+      expect(state.settings).toBeDefined();
     });
 
-    it("should have Nya as default ninja (very-easy difficulty)", () => {
+    it("should have Kai as default ninja (first ninja in list)", () => {
       const state = createInitialState();
-      expect(state.currentNinja.id).toBe("nya");
+      expect(state.currentNinja.id).toBe("kai");
     });
 
-    it("should have very-easy as default difficulty", () => {
+    it("should have default settings (maxNumber: 10, operators: [+, -])", () => {
       const state = createInitialState();
-      expect(state.difficulty.id).toBe("very-easy");
+      expect(state.settings.maxNumber).toBe(10);
+      expect(state.settings.operators).toEqual(["+", "-"]);
+      expect(state.settings.disableIdleTimer).toBe(false);
     });
   });
 
@@ -306,13 +301,20 @@ describe("Game State Management", () => {
     });
   });
 
-  describe("selectDifficulty", () => {
-    it("should change difficulty", () => {
+  describe("applySettings", () => {
+    it("should change game settings", () => {
       const state = createInitialState();
-      const newState = selectDifficulty(state, "hard");
+      const newSettings: GameSettings = {
+        maxNumber: 50,
+        operators: ["*", "/"],
+        disableIdleTimer: true,
+      };
+      
+      const newState = applySettings(state, newSettings);
 
-      expect(newState.difficulty.id).toBe("hard");
-      expect(newState.difficulty.maxNumber).toBe(35);
+      expect(newState.settings.maxNumber).toBe(50);
+      expect(newState.settings.operators).toEqual(["*", "/"]);
+      expect(newState.settings.disableIdleTimer).toBe(true);
     });
   });
 });
@@ -349,24 +351,11 @@ describe("Game Constants", () => {
     });
   });
 
-  describe("DIFFICULTIES", () => {
-    it("should have 6 difficulty levels (including custom)", () => {
-      expect(DIFFICULTIES).toHaveLength(6);
-    });
-
-    it("should have increasing maxNumber for standard difficulties", () => {
-      // Exclude custom from this test (it has dynamic maxNumber)
-      const standardDiffs = DIFFICULTIES.filter((d) => !d.isCustom);
-      const maxNumbers = standardDiffs.map((d) => d.maxNumber);
-
-      for (let i = 1; i < maxNumbers.length; i++) {
-        expect(maxNumbers[i]).toBeGreaterThan(maxNumbers[i - 1]);
-      }
-    });
-
-    it("should have easy level with addition and subtraction", () => {
-      const easy = DIFFICULTIES.find((d) => d.id === "easy");
-      expect(easy?.operators).toEqual(["+", "-"]);
+  describe("DEFAULT_SETTINGS", () => {
+    it("should have sensible defaults", () => {
+      expect(DEFAULT_SETTINGS.maxNumber).toBe(10);
+      expect(DEFAULT_SETTINGS.operators).toEqual(["+", "-"]);
+      expect(DEFAULT_SETTINGS.disableIdleTimer).toBe(false);
     });
   });
 
@@ -379,18 +368,6 @@ describe("Game Constants", () => {
     it("should return first ninja for unknown id", () => {
       const fallback = findNinjaById("unknown");
       expect(fallback).toBe(NINJAS[0]);
-    });
-  });
-
-  describe("findDifficultyById", () => {
-    it("should find difficulty by id", () => {
-      const hard = findDifficultyById("hard");
-      expect(hard.namePolish).toBe("Trudny");
-    });
-
-    it("should return first difficulty for unknown id", () => {
-      const fallback = findDifficultyById("unknown");
-      expect(fallback).toBe(DIFFICULTIES[0]);
     });
   });
 });
@@ -416,7 +393,11 @@ describe("Persistence (localStorage)", () => {
     const dataToSave = {
       highScore: 150,
       selectedNinjaId: "jay",
-      selectedDifficultyId: "medium",
+      gameSettings: {
+        maxNumber: 20,
+        operators: ["+", "-"] as ("+"|"-"|"*"|"/")[],
+        disableIdleTimer: false,
+      },
     };
 
     saveGameData(dataToSave);
@@ -430,19 +411,24 @@ describe("Persistence (localStorage)", () => {
     expect(loaded).toBeNull();
   });
 
-  it("should restore state from saved data (ninja auto-selected by difficulty)", () => {
+  it("should restore state from saved data", () => {
     saveGameData({
       highScore: 500,
-      selectedNinjaId: "kai", // This is ignored - ninja is auto-selected by difficulty
-      selectedDifficultyId: "very-hard",
+      selectedNinjaId: "kai",
+      gameSettings: {
+        maxNumber: 30,
+        operators: ["*", "/"],
+        disableIdleTimer: true,
+      },
     });
 
     const state = createInitialState();
 
     expect(state.highScore).toBe(500);
-    // Ninja is auto-selected based on difficulty (very-hard -> kai)
     expect(state.currentNinja.id).toBe("kai");
-    expect(state.difficulty.id).toBe("very-hard");
+    expect(state.settings.maxNumber).toBe(30);
+    expect(state.settings.operators).toEqual(["*", "/"]);
+    expect(state.settings.disableIdleTimer).toBe(true);
   });
 });
 
@@ -613,7 +599,11 @@ describe("Bug Investigation: Same Visual Problem", () => {
   });
 
   it("generateUniqueProblem should produce visually different problems", () => {
-    const difficulty = DIFFICULTIES.find((d) => d.id === "very-easy")!;
+    const settings: GameSettings = {
+      maxNumber: 10,
+      operators: ["+"],
+      disableIdleTimer: false,
+    };
 
     // Run many trials to catch potential collisions
     for (let i = 0; i < 50; i++) {
@@ -623,7 +613,7 @@ describe("Bug Investigation: Same Visual Problem", () => {
         operator: "+",
         correctAnswer: 3,
       };
-      const problem2 = generateUniqueProblem(difficulty, problem1);
+      const problem2 = generateUniqueProblem(settings, problem1);
 
       const formatted1 = formatProblem(problem1);
       const formatted2 = formatProblem(problem2);
@@ -803,10 +793,10 @@ describe("formatProblem with new operators", () => {
 });
 
 // ============================================================================
-// TESTS - Custom Difficulty Mode
+// TESTS - Game Settings
 // ============================================================================
 
-describe("Custom Difficulty Mode", () => {
+describe("Game Settings", () => {
   let store: Record<string, string>;
 
   beforeEach(() => {
@@ -819,152 +809,51 @@ describe("Custom Difficulty Mode", () => {
     });
   });
 
-  describe("DIFFICULTIES constant", () => {
-    it("should include custom difficulty", () => {
-      const customDiff = DIFFICULTIES.find((d) => d.id === "custom");
-      expect(customDiff).toBeDefined();
-      expect(customDiff?.isCustom).toBe(true);
-      expect(customDiff?.namePolish).toBe("Własny");
-    });
-
-    it("should have 6 difficulty levels (including custom)", () => {
-      expect(DIFFICULTIES).toHaveLength(6);
+  describe("DEFAULT_SETTINGS constant", () => {
+    it("should have sensible defaults", () => {
+      expect(DEFAULT_SETTINGS.maxNumber).toBe(10);
+      expect(DEFAULT_SETTINGS.operators).toEqual(["+", "-"]);
+      expect(DEFAULT_SETTINGS.disableIdleTimer).toBe(false);
     });
   });
 
-  describe("updateCustomDifficulty", () => {
-    it("should update custom difficulty settings", () => {
-      const settings: CustomDifficultySettings = {
-        maxNumber: 50,
-        operators: ["+", "*"],
-        disableIdleTimer: true,
-      };
-
-      const updatedDiff = updateCustomDifficulty(settings);
-
-      expect(updatedDiff.maxNumber).toBe(50);
-      expect(updatedDiff.operators).toEqual(["+", "*"]);
-      expect(updatedDiff.disableIdleTimer).toBe(true);
-    });
-
-    it("should generate description based on settings", () => {
-      const settings: CustomDifficultySettings = {
-        maxNumber: 20,
-        operators: ["+", "-", "*"],
-        disableIdleTimer: false,
-      };
-
-      const updatedDiff = updateCustomDifficulty(settings);
-
-      expect(updatedDiff.description).toContain("dodawanie");
-      expect(updatedDiff.description).toContain("odejmowanie");
-      expect(updatedDiff.description).toContain("mnożenie");
-      expect(updatedDiff.description).toContain("20");
-    });
-
-    it("should include timer info in description when disabled", () => {
-      const settings: CustomDifficultySettings = {
-        maxNumber: 10,
-        operators: ["+"],
-        disableIdleTimer: true,
-      };
-
-      const updatedDiff = updateCustomDifficulty(settings);
-
-      expect(updatedDiff.description).toContain("bez timera");
-    });
-  });
-
-  describe("getCustomDifficultySettings", () => {
-    it("should return default settings when no saved data", () => {
-      const settings = getCustomDifficultySettings();
-
-      expect(settings.maxNumber).toBe(10);
-      expect(settings.operators).toEqual(["+", "-"]);
-      expect(settings.disableIdleTimer).toBe(false);
-    });
-
-    it("should return saved settings when available", () => {
-      const savedSettings: CustomDifficultySettings = {
-        maxNumber: 30,
-        operators: ["*", "/"],
-        disableIdleTimer: true,
-      };
-
-      saveGameData({
-        highScore: 100,
-        selectedNinjaId: "lloyd",
-        selectedDifficultyId: "custom",
-        customDifficulty: savedSettings,
-      });
-
-      const settings = getCustomDifficultySettings();
-
-      expect(settings.maxNumber).toBe(30);
-      expect(settings.operators).toEqual(["*", "/"]);
-      expect(settings.disableIdleTimer).toBe(true);
-    });
-  });
-
-  describe("getNinjaForDifficulty with custom", () => {
-    it("should return Lloyd for custom difficulty", () => {
-      const ninja = getNinjaForDifficulty("custom");
-      expect(ninja.id).toBe("lloyd");
-    });
-  });
-
-  describe("generateProblem with custom operators", () => {
+  describe("generateProblem with different settings", () => {
     it("should generate multiplication problems when configured", () => {
-      const customDiff: DifficultyConfig = {
-        id: "custom",
-        name: "Custom",
-        namePolish: "Własny",
+      const settings: GameSettings = {
         maxNumber: 100,
         operators: ["*"],
-        description: "Only multiplication",
         disableIdleTimer: false,
-        isCustom: true,
       };
 
       for (let i = 0; i < 20; i++) {
-        const problem = generateProblem(customDiff);
+        const problem = generateProblem(settings);
         expect(problem.operator).toBe("*");
       }
     });
 
     it("should generate division problems when configured", () => {
-      const customDiff: DifficultyConfig = {
-        id: "custom",
-        name: "Custom",
-        namePolish: "Własny",
+      const settings: GameSettings = {
         maxNumber: 100,
         operators: ["/"],
-        description: "Only division",
         disableIdleTimer: false,
-        isCustom: true,
       };
 
       for (let i = 0; i < 20; i++) {
-        const problem = generateProblem(customDiff);
+        const problem = generateProblem(settings);
         expect(problem.operator).toBe("/");
       }
     });
 
     it("should generate mixed problems when all operators configured", () => {
-      const customDiff: DifficultyConfig = {
-        id: "custom",
-        name: "Custom",
-        namePolish: "Własny",
+      const settings: GameSettings = {
         maxNumber: 100,
         operators: ["+", "-", "*", "/"],
-        description: "All operations",
         disableIdleTimer: false,
-        isCustom: true,
       };
 
       const operators = new Set<string>();
       for (let i = 0; i < 100; i++) {
-        const problem = generateProblem(customDiff);
+        const problem = generateProblem(settings);
         operators.add(problem.operator);
       }
 
@@ -977,27 +866,34 @@ describe("Custom Difficulty Mode", () => {
     });
   });
 
-  describe("selectDifficulty with custom", () => {
-    it("should select custom difficulty and assign Lloyd", () => {
+  describe("applySettings", () => {
+    it("should update settings in game state", () => {
       const state = createInitialState();
-      const newState = selectDifficulty(state, "custom");
+      const newSettings: GameSettings = {
+        maxNumber: 50,
+        operators: ["*"],
+        disableIdleTimer: true,
+      };
 
-      expect(newState.difficulty.id).toBe("custom");
-      expect(newState.currentNinja.id).toBe("lloyd");
+      const newState = applySettings(state, newSettings);
+
+      expect(newState.settings.maxNumber).toBe(50);
+      expect(newState.settings.operators).toEqual(["*"]);
+      expect(newState.settings.disableIdleTimer).toBe(true);
     });
   });
 
-  describe("Game flow with custom difficulty", () => {
-    it("should play a complete round with custom multiplication settings", () => {
-      // Setup custom difficulty with only multiplication
-      updateCustomDifficulty({
+  describe("Game flow with custom settings", () => {
+    it("should play a complete round with multiplication settings", () => {
+      let state = createInitialState();
+      
+      // Apply custom settings with only multiplication
+      state = applySettings(state, {
         maxNumber: 50,
         operators: ["*"],
         disableIdleTimer: true,
       });
-
-      let state = createInitialState();
-      state = selectDifficulty(state, "custom");
+      
       state = startGame(state);
 
       // First problem should be multiplication
@@ -1017,14 +913,15 @@ describe("Custom Difficulty Mode", () => {
     });
 
     it("should play with division and verify integer results", () => {
-      updateCustomDifficulty({
+      let state = createInitialState();
+      
+      // Apply division-only settings
+      state = applySettings(state, {
         maxNumber: 100,
         operators: ["/"],
         disableIdleTimer: false,
       });
-
-      let state = createInitialState();
-      state = selectDifficulty(state, "custom");
+      
       state = startGame(state);
 
       // Play 5 rounds
@@ -1285,7 +1182,7 @@ describe("Story Path System", () => {
       saveGameData({
         highScore: 100,
         selectedNinjaId: "kai",
-        selectedDifficultyId: "easy",
+        gameSettings: DEFAULT_SETTINGS,
         storyPathId: "serpentine",
       });
 
@@ -1297,7 +1194,7 @@ describe("Story Path System", () => {
       saveGameData({
         highScore: 100,
         selectedNinjaId: "kai",
-        selectedDifficultyId: "easy",
+        gameSettings: DEFAULT_SETTINGS,
         // No storyPathId
       });
 
@@ -1474,14 +1371,13 @@ describe("Story Path System", () => {
       expect(result).toBeNull();
     });
 
-    it("should strip corrupted customDifficulty", () => {
+    it("should strip corrupted gameSettings", () => {
       localStorage.setItem(
         "ninjago-math-game-save",
         JSON.stringify({
           highScore: 100,
           selectedNinjaId: "kai",
-          selectedDifficultyId: "easy",
-          customDifficulty: {
+          gameSettings: {
             maxNumber: "not a number",
             operators: "+", // should be array
             disableIdleTimer: "yes", // should be boolean
@@ -1491,7 +1387,9 @@ describe("Story Path System", () => {
 
       const result = loadGameData();
       expect(result).not.toBeNull();
-      expect(result?.customDifficulty).toBeUndefined();
+      // Should have default settings since original was corrupted
+      expect(result?.gameSettings.maxNumber).toBe(10);
+      expect(result?.gameSettings.operators).toEqual(["+", "-"]);
     });
 
     it("should handle valid save data", () => {
@@ -1500,9 +1398,8 @@ describe("Story Path System", () => {
         JSON.stringify({
           highScore: 500,
           selectedNinjaId: "kai",
-          selectedDifficultyId: "hard",
           storyPathId: "serpentine",
-          customDifficulty: {
+          gameSettings: {
             maxNumber: 50,
             operators: ["*", "/"],
             disableIdleTimer: true,
@@ -1514,7 +1411,7 @@ describe("Story Path System", () => {
       expect(result).not.toBeNull();
       expect(result?.highScore).toBe(500);
       expect(result?.storyPathId).toBe("serpentine");
-      expect(result?.customDifficulty?.maxNumber).toBe(50);
+      expect(result?.gameSettings?.maxNumber).toBe(50);
     });
   });
 });

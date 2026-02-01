@@ -9,11 +9,10 @@ import type {
   GameState,
   EnemyType,
   MathOperator,
-  CustomDifficultySettings,
+  GameSettings,
 } from "./game";
 import {
   NINJAS,
-  DIFFICULTIES,
   COMBAT_CONFIG,
   createInitialState,
   startGame,
@@ -21,13 +20,9 @@ import {
   processIdleAttack,
   shouldIdleAttack,
   selectNinja,
-  selectDifficulty,
+  applySettings,
   formatProblem,
   getIdleTimeout,
-  getNinjaForDifficulty,
-  updateCustomDifficulty,
-  getCustomDifficultySettings,
-  saveGameData,
 } from "./game";
 import { playSound, getMuted, toggleMuted } from "./sounds";
 
@@ -602,7 +597,7 @@ const gameScreen = $("#game-screen");
 const gameoverScreen = $("#gameover-screen");
 
 // Start screen
-const difficultyButtons = $("#difficulty-buttons");
+const ninjaButtons = $("#ninja-buttons");
 const highScoreValue = $("#high-score-value");
 const startBtn = $("#start-btn");
 const muteBtn = $("#mute-btn");
@@ -658,8 +653,12 @@ const victoryEnemies = $("#victory-enemies");
 const victoryRestartBtn = $("#victory-restart-btn");
 const victoryMenuBtn = $("#victory-menu-btn");
 
-// Custom modal
-const customModal = $("#custom-modal");
+// Config modal
+const configBtn = $("#config-btn");
+const configModal = $("#config-modal");
+const configCancelBtn = $("#config-cancel-btn");
+
+// Settings controls (inside config modal)
 const customMaxNumber = $<HTMLInputElement>("#custom-max-number");
 const customMaxNumberValue = $("#custom-max-number-value");
 const opAdd = $<HTMLInputElement>("#op-add");
@@ -667,8 +666,6 @@ const opSub = $<HTMLInputElement>("#op-sub");
 const opMul = $<HTMLInputElement>("#op-mul");
 const opDiv = $<HTMLInputElement>("#op-div");
 const customNoTimer = $<HTMLInputElement>("#custom-no-timer");
-const customSaveBtn = $("#custom-save-btn");
-const customCancelBtn = $("#custom-cancel-btn");
 
 // Progress tower
 const towerBoss = $("#tower-boss");
@@ -1179,40 +1176,24 @@ function createEnemyAvatarSVG(
 }
 
 /**
- * Renderuje przyciski trudności z informacją o przypisanym ninja
+ * Renderuje przyciski wyboru ninja (niezależnie od trudności)
  */
-function renderDifficultyButtons(): void {
-  difficultyButtons.innerHTML = DIFFICULTIES.map((diff) => {
-    const ninja = getNinjaForDifficulty(diff.id);
-    const isSelected = diff.id === gameState.difficulty.id;
-    const noTimerBadge = diff.disableIdleTimer
-      ? '<span class="no-timer-badge">∞ Bez limitu czasu!</span>'
-      : "";
-    const isCustom = diff.isCustom;
-    const customBadge = isCustom
-      ? '<span class="custom-badge">⚙️ Kliknij aby skonfigurować</span>'
-      : "";
-
+function renderNinjaButtons(): void {
+  ninjaButtons.innerHTML = NINJAS.map((ninja) => {
+    const isSelected = ninja.id === gameState.currentNinja.id;
     return `
     <button 
-      class="difficulty-btn ${isSelected ? "selected" : ""} ${
-      isCustom ? "custom-difficulty" : ""
-    }"
-      data-difficulty-id="${diff.id}"
+      class="ninja-btn ${isSelected ? "selected" : ""}"
+      data-ninja-id="${ninja.id}"
       style="--ninja-color: ${ninja.color}"
     >
-      <div class="difficulty-ninja-avatar">
-        ${createNinjaAvatarSVG(ninja, 60)}
+      <div class="ninja-btn-avatar">
+        ${createNinjaAvatarSVG(ninja, 50)}
       </div>
-      <div class="difficulty-info">
-        <span class="difficulty-name">${diff.namePolish}</span>
-        <span class="difficulty-ninja-name">${ninja.emoji} ${ninja.name}</span>
-        <span class="difficulty-desc">${diff.description}</span>
-        <span class="difficulty-ability">✨ ${ninja.abilityName}: ${
-      ninja.abilityDescription
-    }</span>
-        ${noTimerBadge}
-        ${customBadge}
+      <div class="ninja-btn-info">
+        <span class="ninja-btn-name">${ninja.emoji} ${ninja.name}</span>
+        <span class="ninja-btn-element">${ninja.element}</span>
+        <span class="ninja-btn-ability">✨ ${ninja.abilityName}</span>
       </div>
     </button>
   `;
@@ -1220,10 +1201,55 @@ function renderDifficultyButtons(): void {
 }
 
 /**
+ * Generuje opis operacji matematycznych
+ */
+function getOperatorsDescription(operators: MathOperator[]): string {
+  return operators
+    .map((op) => {
+      switch (op) {
+        case "+": return "dodawanie";
+        case "-": return "odejmowanie";
+        case "*": return "mnożenie";
+        case "/": return "dzielenie";
+        default: return op;
+      }
+    })
+    .join(", ");
+}
+
+/**
+ * Renderuje panel ustawień gry (zawsze tryb własny)
+ */
+function renderSettingsPanel(): void {
+  const settings = gameState.settings;
+  
+  // Update slider
+  customMaxNumber.value = String(settings.maxNumber);
+  customMaxNumberValue.textContent = String(settings.maxNumber);
+  
+  // Update operator checkboxes
+  opAdd.checked = settings.operators.includes("+");
+  opSub.checked = settings.operators.includes("-");
+  opMul.checked = settings.operators.includes("*");
+  opDiv.checked = settings.operators.includes("/");
+  
+  // Update timer checkbox
+  customNoTimer.checked = settings.disableIdleTimer;
+  
+  // Update description
+  const descElement = document.getElementById("settings-description");
+  if (descElement) {
+    const timerText = settings.disableIdleTimer ? ", bez limitu czasu" : "";
+    descElement.textContent = `${getOperatorsDescription(settings.operators)} do ${settings.maxNumber}${timerText}`;
+  }
+}
+
+/**
  * Renderuje ekran startowy
  */
 function renderStartScreen(): void {
-  renderDifficultyButtons();
+  renderNinjaButtons();
+  // Settings are now in the modal, not on start screen
   highScoreValue.textContent = String(gameState.highScore);
 
   // Ustaw kolor motywu na podstawie aktualnie wybranego ninja
@@ -1580,8 +1606,8 @@ function showVictory(): void {
 function startIdleTimer(): void {
   stopIdleTimer();
 
-  // Nie uruchamiaj timera jeśli jest wyłączony dla tego poziomu trudności
-  if (gameState.difficulty.disableIdleTimer) {
+  // Nie uruchamiaj timera jeśli jest wyłączony w ustawieniach
+  if (gameState.settings.disableIdleTimer) {
     // Ukryj pasek timera
     const idleTimer = document.getElementById("idle-timer");
     if (idleTimer) idleTimer.style.display = "none";
@@ -1620,7 +1646,7 @@ function updateIdleTimerBar(): void {
   if (
     !gameState.isGameActive ||
     gameState.isGameOver ||
-    gameState.difficulty.disableIdleTimer
+    gameState.settings.disableIdleTimer
   ) {
     idleTimerFill.style.width = "100%";
     return;
@@ -1699,23 +1725,17 @@ function showScreen(screen: "start" | "game"): void {
 // ============================================================================
 
 /**
- * Obsługa wyboru trudności - automatycznie wybiera przypisanego ninja
+ * Obsługa wyboru ninja (niezależnie od trudności)
  */
-difficultyButtons.addEventListener("click", (e) => {
+ninjaButtons.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
-  const btn = target.closest<HTMLElement>(".difficulty-btn");
+  const btn = target.closest<HTMLElement>(".ninja-btn");
   if (!btn) return;
 
-  const difficultyId = btn.dataset.difficultyId;
-  if (difficultyId) {
-    // Jeśli wybrano Custom, pokaż modal konfiguracji
-    if (difficultyId === "custom") {
-      openCustomModal();
-      return;
-    }
-
-    gameState = selectDifficulty(gameState, difficultyId);
-    renderDifficultyButtons();
+  const ninjaId = btn.dataset.ninjaId;
+  if (ninjaId) {
+    gameState = selectNinja(gameState, ninjaId);
+    renderNinjaButtons();
     // Aktualizuj kolor motywu na podstawie nowego ninja
     document.documentElement.style.setProperty(
       "--current-ninja-color",
@@ -1725,38 +1745,13 @@ difficultyButtons.addEventListener("click", (e) => {
 });
 
 // ============================================================================
-// CUSTOM DIFFICULTY MODAL
+// SETTINGS PANEL - Ustawienia gry (zawsze dostępne)
 // ============================================================================
 
 /**
- * Otwiera modal konfiguracji Custom
+ * Odczytuje aktualne ustawienia z panelu UI
  */
-function openCustomModal(): void {
-  // Załaduj aktualne ustawienia
-  const settings = getCustomDifficultySettings();
-
-  customMaxNumber.value = String(settings.maxNumber);
-  customMaxNumberValue.textContent = String(settings.maxNumber);
-  opAdd.checked = settings.operators.includes("+");
-  opSub.checked = settings.operators.includes("-");
-  opMul.checked = settings.operators.includes("*");
-  opDiv.checked = settings.operators.includes("/");
-  customNoTimer.checked = settings.disableIdleTimer;
-
-  customModal.classList.remove("hidden");
-}
-
-/**
- * Zamyka modal konfiguracji Custom
- */
-function closeCustomModal(): void {
-  customModal.classList.add("hidden");
-}
-
-/**
- * Zapisuje ustawienia Custom i wybiera ten tryb
- */
-function saveCustomSettings(): void {
+function readSettingsFromUI(): GameSettings {
   const operators: MathOperator[] = [];
   if (opAdd.checked) operators.push("+");
   if (opSub.checked) operators.push("-");
@@ -1769,54 +1764,65 @@ function saveCustomSettings(): void {
     opAdd.checked = true;
   }
 
-  const settings: CustomDifficultySettings = {
+  return {
     maxNumber: parseInt(customMaxNumber.value, 10),
     operators,
     disableIdleTimer: customNoTimer.checked,
   };
-
-  // Aktualizuj konfigurację Custom
-  updateCustomDifficulty(settings);
-
-  // Zapisz do localStorage
-  saveGameData({
-    highScore: gameState.highScore,
-    selectedNinjaId: gameState.currentNinja.id,
-    selectedDifficultyId: "custom",
-    customDifficulty: settings,
-  });
-
-  // Wybierz tryb Custom
-  gameState = selectDifficulty(gameState, "custom");
-  renderDifficultyButtons();
-  document.documentElement.style.setProperty(
-    "--current-ninja-color",
-    gameState.currentNinja.color
-  );
-
-  closeCustomModal();
 }
 
-// Event listeners dla modalu Custom
+/**
+ * Zapisuje ustawienia z panelu UI do stanu gry
+ */
+function applySettingsFromUI(): void {
+  const settings = readSettingsFromUI();
+  gameState = applySettings(gameState, settings);
+  renderSettingsPanel();
+}
+
+// Event listeners dla panelu ustawień
 customMaxNumber.addEventListener("input", () => {
   customMaxNumberValue.textContent = customMaxNumber.value;
+  applySettingsFromUI();
 });
 
-customSaveBtn.addEventListener("click", saveCustomSettings);
-customCancelBtn.addEventListener("click", closeCustomModal);
+// Operator checkboxes
+[opAdd, opSub, opMul, opDiv].forEach((checkbox) => {
+  checkbox.addEventListener("change", applySettingsFromUI);
+});
 
-// Zamknij modal klikając poza nim
-customModal.addEventListener("click", (e) => {
-  if (e.target === customModal) {
-    closeCustomModal();
-  }
+// Timer checkbox
+customNoTimer.addEventListener("change", applySettingsFromUI);
+
+/**
+ * Otwiera modal konfiguracji
+ */
+configBtn.addEventListener("click", () => {
+  playSound("click");
+  // Populate settings panel with current settings
+  renderSettingsPanel();
+  // Show modal
+  configModal.classList.remove("hidden");
 });
 
 /**
- * Rozpoczęcie gry
+ * Zamyka modal konfiguracji (bez zapisywania)
+ */
+configCancelBtn.addEventListener("click", () => {
+  playSound("click");
+  configModal.classList.add("hidden");
+});
+
+/**
+ * Rozpoczęcie gry (z modalu konfiguracji)
  */
 startBtn.addEventListener("click", () => {
   playSound("start");
+  // Apply settings from modal UI
+  applySettingsFromUI();
+  // Hide modal
+  configModal.classList.add("hidden");
+  // Start the game
   gameState = startGame(gameState);
   showScreen("game");
 
@@ -2148,12 +2154,12 @@ document.addEventListener("keydown", (e) => {
 restartBtn.addEventListener("click", () => {
   playSound("start");
   const currentNinja = gameState.currentNinja;
-  const difficulty = gameState.difficulty;
+  const currentSettings = gameState.settings;
 
   // Resetuj stan i rozpocznij grę
   gameState = createInitialState();
   gameState = selectNinja(gameState, currentNinja.id);
-  gameState = selectDifficulty(gameState, difficulty.id);
+  gameState = applySettings(gameState, currentSettings);
   gameState = startGame(gameState);
 
   // Aktualizuj UI
@@ -2192,12 +2198,12 @@ menuBtn.addEventListener("click", () => {
 victoryRestartBtn.addEventListener("click", () => {
   playSound("start");
   const currentNinja = gameState.currentNinja;
-  const difficulty = gameState.difficulty;
+  const currentSettings = gameState.settings;
 
   // Resetuj stan i rozpocznij grę
   gameState = createInitialState();
   gameState = selectNinja(gameState, currentNinja.id);
-  gameState = selectDifficulty(gameState, difficulty.id);
+  gameState = applySettings(gameState, currentSettings);
   gameState = startGame(gameState);
 
   // Aktualizuj UI
