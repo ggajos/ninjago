@@ -54,12 +54,14 @@ export interface GameState {
   score: number;
   highScore: number;
   streak: number; // seria poprawnych odpowiedzi
+  maxStreak: number; // najwyższa seria w tej grze
   currentProblem: MathProblem | null;
   settings: GameSettings;
   totalProblems: number;
   correctAnswers: number;
   incorrectAnswers: number; // licznik błędnych odpowiedzi
   isGameActive: boolean;
+  gameStartTime: number; // timestamp rozpoczęcia gry
   // Combat system
   playerHealth: number;
   maxPlayerHealth: number;
@@ -84,6 +86,53 @@ export interface SavedData {
   selectedNinjaId: string;
   gameSettings: GameSettings;
   storyPathId?: StoryPathId; // persystencja ścieżki fabularnej
+  activeGameState?: ActiveGameState; // zapisany stan aktywnej gry
+  gameHistory?: GameHistoryEntry[]; // historia zakończonych gier
+}
+
+/** Stan aktywnej gry do zapisania (serializowalny) */
+export interface ActiveGameState {
+  ninjaId: string;
+  score: number;
+  streak: number;
+  currentProblem: MathProblem | null;
+  settings: GameSettings;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  playerHealth: number;
+  maxPlayerHealth: number;
+  enemyHealth: number;
+  maxEnemyHealth: number;
+  enemyLevel: number;
+  enemiesDefeated: number;
+  storyPathId: StoryPathId;
+  currentEnemyId: string;
+  enemiesUntilBoss: number;
+  currentSegmentEnemies: number;
+  bossesDefeated: number;
+  maxStreak: number; // najwyższa seria w tej grze
+  savedAt: number; // timestamp zapisu
+  gameStartTime: number; // timestamp rozpoczęcia gry (dla identyfikacji w historii)
+}
+
+/** Status gry w historii */
+export type GameStatus = "victory" | "defeat" | "in_progress";
+
+/** Wpis w historii gier */
+export interface GameHistoryEntry {
+  id: string; // unikalny identyfikator
+  date: number; // timestamp zakończenia/przerwania
+  ninjaId: string;
+  score: number;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  enemiesDefeated: number;
+  bossesDefeated: number;
+  maxStreak: number;
+  status: GameStatus; // status gry: victory, defeat, in_progress
+  isVictory?: boolean; // DEPRECATED: zachowane dla kompatybilności wstecznej
+  settings: GameSettings;
+  durationMs: number; // czas trwania gry
 }
 
 // ============================================================================
@@ -957,7 +1006,270 @@ export function updateGameSettings(settings: GameSettings): void {
     selectedNinjaId: savedData?.selectedNinjaId ?? "kai",
     gameSettings: settings,
     storyPathId: savedData?.storyPathId,
+    activeGameState: savedData?.activeGameState,
+    gameHistory: savedData?.gameHistory,
   });
+}
+
+/**
+ * Zapisuje aktywny stan gry do localStorage.
+ * Wywoływane po każdej odpowiedzi gracza.
+ */
+export function saveActiveGameState(state: GameState): void {
+  if (!state.isGameActive || state.isGameOver) {
+    return; // Nie zapisuj jeśli gra nieaktywna lub zakończona
+  }
+
+  const activeState: ActiveGameState = {
+    ninjaId: state.currentNinja.id,
+    score: state.score,
+    streak: state.streak,
+    currentProblem: state.currentProblem,
+    settings: state.settings,
+    correctAnswers: state.correctAnswers,
+    incorrectAnswers: state.incorrectAnswers,
+    playerHealth: state.playerHealth,
+    maxPlayerHealth: state.maxPlayerHealth,
+    enemyHealth: state.enemyHealth,
+    maxEnemyHealth: state.maxEnemyHealth,
+    enemyLevel: state.enemyLevel,
+    enemiesDefeated: state.enemiesDefeated,
+    storyPathId: state.storyPath.id,
+    currentEnemyId: state.currentEnemy.id,
+    enemiesUntilBoss: state.enemiesUntilBoss,
+    currentSegmentEnemies: state.currentSegmentEnemies,
+    bossesDefeated: state.bossesDefeated,
+    maxStreak: state.maxStreak,
+    savedAt: Date.now(),
+    gameStartTime: state.gameStartTime,
+  };
+
+  const savedData = loadGameData();
+  saveGameData({
+    highScore: savedData?.highScore ?? state.highScore,
+    selectedNinjaId: state.currentNinja.id,
+    gameSettings: state.settings,
+    storyPathId: state.storyPath.id,
+    activeGameState: activeState,
+    gameHistory: savedData?.gameHistory,
+  });
+}
+
+/**
+ * Usuwa zapisany stan aktywnej gry (po zakończeniu).
+ */
+export function clearActiveGameState(): void {
+  const savedData = loadGameData();
+  if (savedData) {
+    saveGameData({
+      ...savedData,
+      activeGameState: undefined,
+    });
+  }
+}
+
+/**
+ * Sprawdza czy jest zapisany stan aktywnej gry.
+ */
+export function hasActiveGameState(): boolean {
+  const savedData = loadGameData();
+  return !!savedData?.activeGameState;
+}
+
+/**
+ * Przywraca stan gry z zapisanego stanu.
+ */
+export function restoreGameState(savedData: SavedData): GameState | null {
+  const activeState = savedData.activeGameState;
+  if (!activeState) return null;
+
+  const ninja = findNinjaById(activeState.ninjaId);
+  const storyPath = findStoryPathById(activeState.storyPathId);
+  const currentEnemy = findEnemyById(activeState.currentEnemyId);
+
+  // Użyj zapisanego gameStartTime jeśli dostępny, w przeciwnym razie oszacuj
+  const gameStartTime = activeState.gameStartTime ?? 
+    (activeState.savedAt - (activeState.correctAnswers + activeState.incorrectAnswers) * 5000);
+
+  return {
+    currentNinja: ninja,
+    score: activeState.score,
+    highScore: savedData.highScore,
+    streak: activeState.streak,
+    maxStreak: activeState.maxStreak,
+    currentProblem: activeState.currentProblem,
+    settings: activeState.settings,
+    totalProblems: activeState.correctAnswers, // approximation
+    correctAnswers: activeState.correctAnswers,
+    incorrectAnswers: activeState.incorrectAnswers,
+    isGameActive: true,
+    gameStartTime: gameStartTime,
+    playerHealth: activeState.playerHealth,
+    maxPlayerHealth: activeState.maxPlayerHealth,
+    enemyHealth: activeState.enemyHealth,
+    maxEnemyHealth: activeState.maxEnemyHealth,
+    isGameOver: false,
+    isVictory: false,
+    lastAnswerTime: Date.now(), // reset idle timer
+    enemyLevel: activeState.enemyLevel,
+    enemiesDefeated: activeState.enemiesDefeated,
+    storyPath,
+    currentEnemy,
+    enemiesUntilBoss: activeState.enemiesUntilBoss,
+    currentSegmentEnemies: activeState.currentSegmentEnemies,
+    bossesDefeated: activeState.bossesDefeated,
+  };
+}
+
+/**
+ * Pomocnicza funkcja do usunięcia istniejącego wpisu in_progress dla tej samej gry.
+ * Porównuje czas rozpoczęcia gry (gameStartTime).
+ */
+function removeExistingInProgressEntry(
+  history: GameHistoryEntry[],
+  gameStartTime: number
+): GameHistoryEntry[] {
+  return history.filter((entry) => {
+    // Zachowaj wszystkie zakończone gry
+    if (entry.status !== "in_progress") return true;
+    // Sprawdź czy to ta sama gra po czasie rozpoczęcia
+    const entryStartTime = entry.date - entry.durationMs;
+    const timeDiff = Math.abs(entryStartTime - gameStartTime);
+    // Jeśli różnica < 5 minut - to prawdopodobnie ta sama gra, usuń
+    if (timeDiff < 300000) {
+      return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Dodaje grę do historii.
+ * Jeśli status to "in_progress", najpierw usuwa istniejący wpis in_progress dla tej samej gry.
+ * @param state - aktualny stan gry
+ * @param status - status gry (domyślnie na podstawie stanu gry)
+ * @param clearActiveState - czy wyczyścić aktywny stan gry (domyślnie true dla victory/defeat)
+ */
+export function addGameToHistory(
+  state: GameState,
+  status?: GameStatus,
+  clearActiveState?: boolean
+): string {
+  const savedData = loadGameData();
+  let history = savedData?.gameHistory ?? [];
+
+  // Określ status na podstawie stanu gry jeśli nie podano
+  const gameStatus: GameStatus =
+    status ?? (state.isVictory ? "victory" : state.isGameOver ? "defeat" : "in_progress");
+
+  // Domyślnie czyść aktywny stan tylko dla zakończonych gier
+  const shouldClearActiveState = clearActiveState ?? gameStatus !== "in_progress";
+
+  // Jeśli dodajemy in_progress, najpierw usuń istniejący wpis in_progress dla tej gry
+  if (gameStatus === "in_progress") {
+    history = removeExistingInProgressEntry(history, state.gameStartTime);
+  }
+
+  const entryId = `game-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  const entry: GameHistoryEntry = {
+    id: entryId,
+    date: Date.now(),
+    ninjaId: state.currentNinja.id,
+    score: state.score,
+    correctAnswers: state.correctAnswers,
+    incorrectAnswers: state.incorrectAnswers,
+    enemiesDefeated: state.enemiesDefeated,
+    bossesDefeated: state.bossesDefeated,
+    maxStreak: state.maxStreak,
+    status: gameStatus,
+    settings: state.settings,
+    durationMs: state.gameStartTime > 0 ? Date.now() - state.gameStartTime : 0,
+  };
+
+  // Ogranicz historię do 50 ostatnich gier
+  const newHistory = [entry, ...history].slice(0, 50);
+
+  saveGameData({
+    highScore: savedData?.highScore ?? state.highScore,
+    selectedNinjaId: state.currentNinja.id,
+    gameSettings: state.settings,
+    storyPathId: savedData?.storyPathId,
+    activeGameState: shouldClearActiveState ? undefined : savedData?.activeGameState,
+    gameHistory: newHistory,
+  });
+
+  return entryId;
+}
+
+/**
+ * Pobiera historię gier.
+ */
+export function getGameHistory(): GameHistoryEntry[] {
+  const savedData = loadGameData();
+  return savedData?.gameHistory ?? [];
+}
+
+/**
+ * Aktualizuje wpis w historii gier (np. gdy gra in_progress zostanie dokończona).
+ * Usuwa stary wpis in_progress dla tej samej gry i dodaje nowy z aktualnym statusem.
+ */
+export function updateGameInHistory(
+  state: GameState,
+  status: GameStatus
+): void {
+  const savedData = loadGameData();
+  if (!savedData) return;
+
+  const history = savedData.gameHistory ?? [];
+
+  // Usuń istniejący wpis in_progress dla tej samej gry
+  const filteredHistory = removeExistingInProgressEntry(history, state.gameStartTime);
+
+  // Dodaj nowy wpis z aktualnym statusem
+  const entry: GameHistoryEntry = {
+    id: `game-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    date: Date.now(),
+    ninjaId: state.currentNinja.id,
+    score: state.score,
+    correctAnswers: state.correctAnswers,
+    incorrectAnswers: state.incorrectAnswers,
+    enemiesDefeated: state.enemiesDefeated,
+    bossesDefeated: state.bossesDefeated,
+    maxStreak: state.maxStreak,
+    status: status,
+    settings: state.settings,
+    durationMs: state.gameStartTime > 0 ? Date.now() - state.gameStartTime : 0,
+  };
+
+  const newHistory = [entry, ...filteredHistory].slice(0, 50);
+
+  saveGameData({
+    ...savedData,
+    activeGameState: undefined, // Czyść aktywny stan - gra zakończona
+    gameHistory: newHistory,
+  });
+}
+
+/**
+ * Sprawdza czy istnieje gra w toku (in_progress) w historii.
+ */
+export function hasInProgressGame(): boolean {
+  const savedData = loadGameData();
+  return savedData?.activeGameState !== undefined;
+}
+
+/**
+ * Czyści całą historię gier.
+ */
+export function clearGameHistory(): void {
+  const savedData = loadGameData();
+  if (savedData) {
+    saveGameData({
+      ...savedData,
+      gameHistory: [],
+    });
+  }
 }
 
 // ============================================================================
@@ -1000,12 +1312,14 @@ export function createInitialState(): GameState {
     score: 0,
     highScore,
     streak: 0,
+    maxStreak: 0,
     currentProblem: null,
     settings,
     totalProblems: 0,
     correctAnswers: 0,
     incorrectAnswers: 0,
     isGameActive: false,
+    gameStartTime: 0,
     // Combat system
     playerHealth: maxHealth,
     maxPlayerHealth: maxHealth,
@@ -1043,15 +1357,19 @@ export function startGame(state: GameState): GameState {
   // Losuj ile wrogów do pierwszego bossa
   const enemiesUntilBoss = rollEnemiesUntilBoss();
 
+  const now = Date.now();
+  
   return {
     ...state,
     score: 0,
     streak: 0,
+    maxStreak: 0,
     currentProblem: generateProblem(state.settings),
     totalProblems: 0,
     correctAnswers: 0,
     incorrectAnswers: 0,
     isGameActive: true,
+    gameStartTime: now,
     // Reset combat
     playerHealth: maxHealth,
     maxPlayerHealth: maxHealth,
@@ -1059,7 +1377,7 @@ export function startGame(state: GameState): GameState {
     maxEnemyHealth: initialEnemyHealth,
     isGameOver: false,
     isVictory: false,
-    lastAnswerTime: Date.now(),
+    lastAnswerTime: now,
     // Reset enemy progression
     enemyLevel: 1,
     enemiesDefeated: 0,
@@ -1251,11 +1569,15 @@ export function processAnswer(
     }
   }
 
+  // Oblicz maxStreak
+  const newMaxStreak = Math.max(state.maxStreak, newStreak);
+
   const newState: GameState = {
     ...state,
     score: newScore,
     highScore: newHighScore,
     streak: newStreak,
+    maxStreak: newMaxStreak,
     // Nowe zadanie tylko przy poprawnej odpowiedzi - przy błędnej to samo zadanie
     currentProblem:
       playerDefeated || isVictory

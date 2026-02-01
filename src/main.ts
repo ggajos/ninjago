@@ -23,6 +23,16 @@ import {
   applySettings,
   formatProblem,
   getIdleTimeout,
+  loadGameData,
+  saveActiveGameState,
+  clearActiveGameState,
+  restoreGameState,
+  addGameToHistory,
+  updateGameInHistory,
+  hasInProgressGame,
+  getGameHistory,
+  clearGameHistory,
+  findNinjaById,
 } from "./game";
 import { playSound, getMuted, toggleMuted } from "./sounds";
 
@@ -657,6 +667,24 @@ const victoryMenuBtn = $("#victory-menu-btn");
 const configBtn = $("#config-btn");
 const configModal = $("#config-modal");
 const configCancelBtn = $("#config-cancel-btn");
+const continueBtn = $("#continue-btn");
+
+// History section
+const gameHistorySection = $("#game-history-section");
+const gameHistoryList = $("#game-history-list");
+const clearHistoryBtn = $("#clear-history-btn");
+
+// Game over screen extended stats
+const finalIncorrect = $("#final-incorrect");
+const finalBosses = $("#final-bosses");
+const finalMaxStreak = $("#final-max-streak");
+const finalConfig = $("#final-config");
+
+// Victory screen extended stats
+const victoryIncorrect = $("#victory-incorrect");
+const victoryBosses = $("#victory-bosses");
+const victoryMaxStreak = $("#victory-max-streak");
+const victoryConfig = $("#victory-config");
 
 // Settings controls (inside config modal)
 const customMaxNumber = $<HTMLInputElement>("#custom-max-number");
@@ -1218,6 +1246,160 @@ function getOperatorsDescription(operators: MathOperator[]): string {
 }
 
 /**
+ * Generuje krótki opis operatorów (symbole)
+ */
+function getOperatorsShort(operators: MathOperator[]): string {
+  return operators
+    .map((op) => {
+      switch (op) {
+        case "+": return "+";
+        case "-": return "−";
+        case "*": return "×";
+        case "/": return "÷";
+        default: return op;
+      }
+    })
+    .join(" ");
+}
+
+/**
+ * Formatuje czas trwania w czytelny sposób
+ */
+function formatDuration(ms: number): string {
+  if (ms <= 0) return "—";
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+}
+
+/**
+ * Renderuje podsumowanie konfiguracji gry
+ */
+function renderGameConfigSummary(settings: GameSettings): string {
+  const ops = getOperatorsShort(settings.operators);
+  const timer = settings.disableIdleTimer ? "∞" : "⏱️";
+  return `<span class="config-summary">📊 Max: ${settings.maxNumber} | ${ops} | ${timer}</span>`;
+}
+
+/**
+ * Renderuje statystyki na ekranie game over
+ */
+function renderGameOverStats(): void {
+  finalIncorrect.textContent = String(gameState.incorrectAnswers);
+  finalBosses.textContent = String(gameState.bossesDefeated);
+  finalMaxStreak.textContent = String(gameState.maxStreak);
+  finalConfig.innerHTML = renderGameConfigSummary(gameState.settings);
+}
+
+/**
+ * Renderuje statystyki na ekranie zwycięstwa
+ */
+function renderVictoryStats(): void {
+  victoryIncorrect.textContent = String(gameState.incorrectAnswers);
+  victoryBosses.textContent = String(gameState.bossesDefeated);
+  victoryMaxStreak.textContent = String(gameState.maxStreak);
+  victoryConfig.innerHTML = renderGameConfigSummary(gameState.settings);
+}
+
+/**
+ * Renderuje historię gier na ekranie startowym
+ */
+function renderGameHistory(): void {
+  const history = getGameHistory();
+  
+  if (history.length === 0) {
+    gameHistorySection.classList.add("hidden");
+    return;
+  }
+  
+  gameHistorySection.classList.remove("hidden");
+  
+  // Pokaż ostatnie 5 gier
+  const recentGames = history.slice(0, 5);
+  
+  gameHistoryList.innerHTML = recentGames.map((entry, index) => {
+    const ninja = findNinjaById(entry.ninjaId);
+    const date = new Date(entry.date);
+    const dateStr = date.toLocaleDateString("pl-PL", { 
+      day: "numeric", 
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    
+    // Obsługa starego formatu (isVictory) i nowego (status)
+    const status = entry.status ?? (entry.isVictory ? "victory" : "defeat");
+    const resultEmoji = status === "victory" ? "🏆" : status === "in_progress" ? "⏸️" : "💀";
+    const statusLabel = status === "victory" ? "Wygrana" : status === "in_progress" ? "W toku" : "Przegrana";
+    const statusClass = status === "victory" ? "victory" : status === "in_progress" ? "in-progress" : "defeat";
+    
+    const ops = getOperatorsShort(entry.settings.operators);
+    const accuracy = entry.correctAnswers + entry.incorrectAnswers > 0
+      ? Math.round((entry.correctAnswers / (entry.correctAnswers + entry.incorrectAnswers)) * 100)
+      : 0;
+    
+    return `
+      <div class="history-entry ${statusClass}" data-entry-index="${index}">
+        <div class="history-header">
+          <span class="history-ninja">${ninja.emoji}</span>
+          <span class="history-result">${resultEmoji}</span>
+          <span class="history-score">${entry.score} pkt</span>
+          <span class="history-expand">▼</span>
+        </div>
+        <div class="history-details">
+          <span>✓${entry.correctAnswers} ✗${entry.incorrectAnswers}</span>
+          <span>💀${entry.enemiesDefeated}</span>
+          <span>🔥${entry.maxStreak}</span>
+          <span>${ops} ≤${entry.settings.maxNumber}</span>
+        </div>
+        <div class="history-expanded">
+          <div class="history-expanded-row">
+            <span>🥷 ${ninja.name}</span>
+            <span>📊 ${statusLabel}</span>
+          </div>
+          <div class="history-expanded-row">
+            <span>🎯 Celność: ${accuracy}%</span>
+            <span>👹 Bossy: ${entry.bossesDefeated}</span>
+          </div>
+          <div class="history-expanded-row">
+            <span>⏱️ ${formatDuration(entry.durationMs)}</span>
+            <span>🔢 ${ops}</span>
+            <span>${entry.settings.disableIdleTimer ? "∞" : "⏱️"}</span>
+          </div>
+        </div>
+        <div class="history-footer">
+          <span class="history-date">${dateStr}</span>
+          <span class="history-duration">${formatDuration(entry.durationMs)}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+  
+  // Add click handlers for expandable entries
+  const entries = gameHistoryList.querySelectorAll(".history-entry");
+  entries.forEach((entry) => {
+    entry.addEventListener("click", () => {
+      entry.classList.toggle("expanded");
+    });
+  });
+}
+
+/**
+ * Obsługa przycisku czyszczenia historii
+ */
+clearHistoryBtn.addEventListener("click", (e) => {
+  e.stopPropagation(); // Prevent triggering parent clicks
+  
+  // Confirm before clearing
+  if (confirm("Czy na pewno chcesz wyczyścić całą historię gier?")) {
+    clearGameHistory();
+    renderGameHistory();
+  }
+});
+
+/**
  * Renderuje panel ustawień gry (zawsze tryb własny)
  */
 function renderSettingsPanel(): void {
@@ -1251,6 +1433,9 @@ function renderStartScreen(): void {
   renderNinjaButtons();
   // Settings are now in the modal, not on start screen
   highScoreValue.textContent = String(gameState.highScore);
+  
+  // Render game history
+  renderGameHistory();
 
   // Ustaw kolor motywu na podstawie aktualnie wybranego ninja
   document.documentElement.style.setProperty(
@@ -1567,9 +1752,15 @@ function showFeedback(
 function showGameOver(): void {
   stopIdleTimer();
 
+  // Aktualizuj wpis w historii (z in_progress na defeat) i wyczyść aktywny stan
+  updateGameInHistory(gameState, "defeat");
+
   finalScore.textContent = String(gameState.score);
   finalCorrect.textContent = String(gameState.correctAnswers);
   finalEnemies.textContent = String(gameState.enemiesDefeated);
+
+  // Show additional stats
+  renderGameOverStats();
 
   gameScreen.classList.add("hidden");
   gameoverScreen.classList.remove("hidden");
@@ -1585,9 +1776,15 @@ function showVictory(): void {
   stopIdleTimer();
   gameState.isGameOver = true;
 
+  // Aktualizuj wpis w historii (z in_progress na victory) i wyczyść aktywny stan
+  updateGameInHistory(gameState, "victory");
+
   victoryScore.textContent = String(gameState.score);
   victoryCorrect.textContent = String(gameState.correctAnswers);
   victoryEnemies.textContent = String(gameState.enemiesDefeated);
+
+  // Show additional stats
+  renderVictoryStats();
 
   gameScreen.classList.add("hidden");
   victoryScreen.classList.remove("hidden");
@@ -1711,6 +1908,13 @@ function showScreen(screen: "start" | "game"): void {
     gameoverScreen.classList.add("hidden");
     victoryScreen.classList.add("hidden");
     renderStartScreen();
+    
+    // Pokaż/ukryj przycisk "Kontynuuj" w zależności od zapisanego stanu gry
+    if (hasInProgressGame()) {
+      continueBtn.classList.remove("hidden");
+    } else {
+      continueBtn.classList.add("hidden");
+    }
   } else {
     startScreen.classList.add("hidden");
     gameoverScreen.classList.add("hidden");
@@ -1822,6 +2026,8 @@ startBtn.addEventListener("click", () => {
   applySettingsFromUI();
   // Hide modal
   configModal.classList.add("hidden");
+  // Clear any saved game state when starting new game
+  clearActiveGameState();
   // Start the game
   gameState = startGame(gameState);
   showScreen("game");
@@ -1839,7 +2045,36 @@ backBtn.addEventListener("click", () => {
   playSound("click");
   stopIdleTimer();
   gameState.isGameActive = false;
+  
+  // Zapisz grę do historii jako "w toku" (ale zachowaj activeGameState do kontynuacji)
+  addGameToHistory(gameState, "in_progress", false);
+  
   showScreen("start");
+});
+
+/**
+ * Kontynuacja zapisanej gry
+ */
+continueBtn.addEventListener("click", () => {
+  playSound("click");
+  
+  const savedData = loadGameData();
+  if (savedData?.activeGameState) {
+    const restoredState = restoreGameState(savedData);
+    if (restoredState) {
+      gameState = restoredState;
+      showScreen("game");
+      ninjaMessage.textContent = "Kontynuujesz poprzednią grę!";
+      setTimeout(() => {
+        ninjaMessage.textContent = "";
+      }, 2000);
+      return;
+    }
+  }
+  
+  // Jeśli nie udało się przywrócić - rozpocznij nową grę
+  clearActiveGameState();
+  continueBtn.classList.add("hidden");
 });
 
 /**
@@ -1859,6 +2094,11 @@ function handleSubmit(): void {
   const correctAnswer = gameState.currentProblem?.correctAnswer;
   const result = processAnswer(gameState, userAnswer);
   gameState = result.state;
+
+  // Auto-save game state after each answer
+  if (!result.playerDefeated && !result.isVictory) {
+    saveActiveGameState(gameState);
+  }
 
   // EPIC EFFECTS dla poprawnej odpowiedzi
   if (result.playerAttacked) {
@@ -2284,6 +2524,28 @@ speechBtn.addEventListener("click", () => {
 function init(): void {
   updateMuteButton();
   updateSpeechButton();
+  
+  // Check if there's a saved game to restore
+  const savedData = loadGameData();
+  if (savedData?.activeGameState) {
+    const restoredState = restoreGameState(savedData);
+    if (restoredState) {
+      // Restore and continue the game immediately
+      gameState = restoredState;
+      showScreen("game");
+      
+      // Show a brief message that we're continuing
+      ninjaMessage.textContent = "Kontynuujesz poprzednią grę!";
+      setTimeout(() => {
+        ninjaMessage.textContent = "";
+      }, 2000);
+      return;
+    }
+    // If restore failed, clear the corrupted state
+    clearActiveGameState();
+  }
+  
+  // No saved game, show start screen
   showScreen("start");
 }
 

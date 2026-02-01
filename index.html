@@ -34,6 +34,16 @@
           <span id="high-score-value">0</span>
         </div>
         
+        <!-- Historia gier -->
+        <section id="game-history-section" class="game-history-section hidden">
+          <div class="history-header-row">
+            <h3>📜 Historia rozgrywek</h3>
+            <button id="clear-history-btn" class="btn btn-clear-history" aria-label="Wyczyść historię">🗑️</button>
+          </div>
+          <div id="game-history-list" class="game-history-list"></div>
+        </section>
+        
+        <button id="continue-btn" class="btn btn-continue hidden">▶️ Kontynuuj grę</button>
         <button id="config-btn" class="btn btn-start">⚙️ Konfiguruj</button>
       </div>
       
@@ -206,8 +216,12 @@
         <div class="gameover-stats">
           <p>Zdobyte punkty: <strong id="final-score">0</strong></p>
           <p>Poprawne odpowiedzi: <strong id="final-correct">0</strong></p>
+          <p>Błędne odpowiedzi: <strong id="final-incorrect">0</strong></p>
           <p>Pokonani wrogowie: <strong id="final-enemies">0</strong></p>
+          <p>Pokonani bossy: <strong id="final-bosses">0</strong></p>
+          <p>Najdłuższa seria: <strong id="final-max-streak">0</strong></p>
         </div>
+        <div id="final-config" class="game-config-summary"></div>
         <button id="restart-btn" class="btn btn-start">Zagraj ponownie!</button>
         <button id="menu-btn" class="btn btn-small">⬅ Menu główne</button>
       </div>
@@ -222,8 +236,12 @@
         <div class="gameover-stats victory-stats">
           <p>Zdobyte punkty: <strong id="victory-score">0</strong></p>
           <p>Poprawne odpowiedzi: <strong id="victory-correct">0</strong></p>
+          <p>Błędne odpowiedzi: <strong id="victory-incorrect">0</strong></p>
           <p>Pokonani wrogowie: <strong id="victory-enemies">0</strong></p>
+          <p>Pokonani bossy: <strong id="victory-bosses">0</strong></p>
+          <p>Najdłuższa seria: <strong id="victory-max-streak">0</strong></p>
         </div>
+        <div id="victory-config" class="game-config-summary"></div>
         <button id="victory-restart-btn" class="btn btn-start">🥷 Nowa przygoda!</button>
         <button id="victory-menu-btn" class="btn btn-small">⬅ Menu główne</button>
       </div>

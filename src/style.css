@@ -2835,3 +2835,254 @@ h2 {
   }
 }
 
+/* ============================================================================
+   GAME HISTORY - Historia rozgrywek
+   ============================================================================ */
+
+.game-history-section {
+  width: 100%;
+  max-width: 400px;
+  margin: var(--space-md) 0;
+}
+
+.game-history-section h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  text-align: center;
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.game-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--space-xs);
+}
+
+.history-entry {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  border-left: 3px solid var(--error);
+  font-size: 0.85rem;
+}
+
+.history-entry.victory {
+  border-left-color: var(--success);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.history-entry.defeat {
+  border-left-color: var(--error);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.history-entry.in-progress {
+  border-left-color: var(--accent-gold);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+}
+
+.history-ninja {
+  font-size: 1.1rem;
+}
+
+.history-result {
+  font-size: 1rem;
+}
+
+.history-score {
+  margin-left: auto;
+  color: var(--accent-gold);
+}
+
+.history-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.history-footer {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  margin-top: var(--space-xs);
+  opacity: 0.7;
+}
+
+/* History header row with title and clear button */
+.history-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.history-header-row h3 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* Clear history button */
+.btn-clear-history {
+  background: rgba(248, 113, 113, 0.2);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--error);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-clear-history:hover {
+  background: rgba(248, 113, 113, 0.3);
+  border-color: var(--error);
+  transform: scale(1.05);
+}
+
+.btn-clear-history:active {
+  transform: scale(0.95);
+}
+
+/* Expand indicator arrow */
+.history-expand {
+  margin-left: var(--space-xs);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+  cursor: pointer;
+}
+
+/* Make history entry clickable for expansion */
+.history-entry {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-entry:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Expanded content (hidden by default) */
+.history-expanded {
+  display: none;
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Entry expanded state */
+.history-entry.expanded {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.history-entry.expanded.victory {
+  background: rgba(74, 222, 128, 0.12);
+}
+
+.history-entry.expanded.defeat {
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.history-entry.expanded.in-progress {
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.history-entry.expanded .history-expand {
+  transform: rotate(180deg);
+}
+
+.history-entry.expanded .history-expanded {
+  display: block;
+}
+
+/* Expanded row layout */
+.history-expanded-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-xs) 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.history-expanded-row:not(:last-child) {
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
+.history-expanded-row span:first-child {
+  opacity: 0.8;
+}
+
+.history-expanded-row span:last-child {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   CONTINUE BUTTON - Przycisk kontynuacji
+   ============================================================================ */
+
+.btn-continue {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: white;
+  font-size: 1.1rem;
+  padding: var(--space-md) var(--space-xl);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-sm);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.btn-continue:hover {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  transform: scale(1.05);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
+  }
+}
+
+/* ============================================================================
+   CONFIG SUMMARY - Podsumowanie konfiguracji
+   ============================================================================ */
+
+.game-config-summary {
+  margin: var(--space-md) 0;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.config-summary {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* ============================================================================
+   EXTENDED STATS - Rozszerzone statystyki
+   ============================================================================ */
+
+.gameover-stats p {
+  margin: var(--space-xs) 0;
+}
