@@ -992,6 +992,17 @@ h2 {
   min-height: 2rem;
   text-align: center;
   transition: all 0.3s ease;
+  /* Absolutne pozycjonowanie żeby nie wpływać na układ */
+  position: fixed;
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  pointer-events: none;
+}
+
+.feedback:empty {
+  display: none;
 }
 
 .feedback.correct {
@@ -1005,9 +1016,9 @@ h2 {
 }
 
 @keyframes popIn {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); opacity: 1; }
+  0% { transform: translateX(-50%) scale(0); opacity: 0; }
+  50% { transform: translateX(-50%) scale(1.2); }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 
 /* ============================================================================
@@ -1018,11 +1029,17 @@ h2 {
   font-size: 1.125rem;
   font-style: italic;
   text-align: center;
-  min-height: 1.5rem;
-  padding: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   max-width: 400px;
   transition: all 0.3s ease;
+  /* Absolutne pozycjonowanie żeby nie wpływać na układ */
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  pointer-events: none;
 }
 
 .ninja-message:empty {
@@ -1117,17 +1134,17 @@ h2 {
     min-width: 100px;
   }
   
-  /* Feedback i wiadomości bardziej kompaktowe */
+  /* Feedback i wiadomości - pozycja fixed już obsłużona, tylko dostosuj rozmiar */
   .feedback {
     font-size: 1rem;
-    min-height: 1.5rem;
+    bottom: 120px;
   }
   
   .ninja-message {
     font-size: 0.875rem;
-    padding: var(--space-xs);
-    margin-bottom: var(--space-sm);
-    min-height: 1rem;
+    padding: var(--space-xs) var(--space-sm);
+    bottom: 85px;
+    max-width: 90%;
   }
 }
 
