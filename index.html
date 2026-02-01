@@ -10,8 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/ninjago/assets/index-D0TODpC_.js"></script>
-    <link rel="stylesheet" crossorigin href="/ninjago/assets/index-DNP-EMta.css">
+    <script type="module" crossorigin src="/ninjago/assets/index-DQoU0irK.js"></script>
+    <link rel="stylesheet" crossorigin href="/ninjago/assets/index-CYfyoViL.css">
   </head>
   <body>
     <div id="app">
@@ -24,10 +24,10 @@
         <h1 class="title">🥷 Ninjago Math 🥷</h1>
         <p class="subtitle">Naucz się liczyć z ninja!</p>
         
-        <!-- Wybór trudności (z automatycznym wyborem ninja) -->
-        <section class="difficulty-selection">
-          <h2>Wybierz poziom i ninja:</h2>
-          <div id="difficulty-buttons" class="difficulty-buttons"></div>
+        <!-- Wybór ninja -->
+        <section class="ninja-selection">
+          <h2>Wybierz ninja:</h2>
+          <div id="ninja-buttons" class="ninja-buttons"></div>
         </section>
         
         <!-- Rekord -->
@@ -36,7 +36,67 @@
           <span id="high-score-value">0</span>
         </div>
         
-        <button id="start-btn" class="btn btn-start">Rozpocznij trening!</button>
+        <!-- Historia gier -->
+        <section id="game-history-section" class="game-history-section hidden">
+          <div class="history-header-row">
+            <h3>📜 Historia rozgrywek</h3>
+            <button id="clear-history-btn" class="btn btn-clear-history" aria-label="Wyczyść historię">🗑️</button>
+          </div>
+          <div id="game-history-list" class="game-history-list"></div>
+        </section>
+        
+        <button id="continue-btn" class="btn btn-continue hidden">▶️ Kontynuuj grę</button>
+        <button id="config-btn" class="btn btn-start">⚙️ Konfiguruj</button>
+      </div>
+      
+      <!-- MODAL KONFIGURACJI -->
+      <div id="config-modal" class="modal hidden">
+        <div class="modal-content">
+          <h2>⚙️ Ustawienia gry</h2>
+          
+          <div class="custom-setting">
+            <label>Maksymalny wynik działania:</label>
+            <div class="range-display">
+              <input type="range" id="custom-max-number" min="5" max="100" value="10" />
+              <span id="custom-max-number-value" class="range-value">10</span>
+            </div>
+            <p class="setting-hint">💡 Np. dla "20" zadania to: 12+8, 15-3, 4×5, 18÷2</p>
+          </div>
+          
+          <div class="custom-setting">
+            <label>Operacje matematyczne:</label>
+            <div class="operator-toggles">
+              <label class="operator-toggle">
+                <input type="checkbox" id="op-add" checked />
+                <span>+</span>
+              </label>
+              <label class="operator-toggle">
+                <input type="checkbox" id="op-sub" checked />
+                <span>−</span>
+              </label>
+              <label class="operator-toggle">
+                <input type="checkbox" id="op-mul" />
+                <span>×</span>
+              </label>
+              <label class="operator-toggle">
+                <input type="checkbox" id="op-div" />
+                <span>÷</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="custom-setting">
+            <label class="timer-toggle">
+              <input type="checkbox" id="custom-no-timer" />
+              <span>∞ Bez limitu czasu</span>
+            </label>
+          </div>
+          
+          <div class="modal-buttons">
+            <button id="start-btn" class="btn btn-start">🥷 Start!</button>
+            <button id="config-cancel-btn" class="btn btn-small">⬅ Wróć</button>
+          </div>
+        </div>
       </div>
       
       <!-- EKRAN GRY -->
@@ -140,6 +200,16 @@
         
         <!-- Wiadomość ninja -->
         <div id="ninja-message" class="ninja-message"></div>
+        
+        <!-- Wieża postępu - droga do bossa -->
+        <div id="progress-tower" class="progress-tower">
+          <div class="tower-boss" id="tower-boss">🐉</div>
+          <div class="tower-path" id="tower-path">
+            <!-- Punkty generowane przez JS -->
+          </div>
+          <div class="tower-ninja" id="tower-ninja">🥷</div>
+          <div class="tower-start">▬</div>
+        </div>
       </div>
       
       <!-- EKRAN GAME OVER -->
@@ -148,8 +218,12 @@
         <div class="gameover-stats">
           <p>Zdobyte punkty: <strong id="final-score">0</strong></p>
           <p>Poprawne odpowiedzi: <strong id="final-correct">0</strong></p>
+          <p>Błędne odpowiedzi: <strong id="final-incorrect">0</strong></p>
           <p>Pokonani wrogowie: <strong id="final-enemies">0</strong></p>
+          <p>Pokonani bossy: <strong id="final-bosses">0</strong></p>
+          <p>Najdłuższa seria: <strong id="final-max-streak">0</strong></p>
         </div>
+        <div id="final-config" class="game-config-summary"></div>
         <button id="restart-btn" class="btn btn-start">Zagraj ponownie!</button>
         <button id="menu-btn" class="btn btn-small">⬅ Menu główne</button>
       </div>
@@ -164,60 +238,14 @@
         <div class="gameover-stats victory-stats">
           <p>Zdobyte punkty: <strong id="victory-score">0</strong></p>
           <p>Poprawne odpowiedzi: <strong id="victory-correct">0</strong></p>
+          <p>Błędne odpowiedzi: <strong id="victory-incorrect">0</strong></p>
           <p>Pokonani wrogowie: <strong id="victory-enemies">0</strong></p>
+          <p>Pokonani bossy: <strong id="victory-bosses">0</strong></p>
+          <p>Najdłuższa seria: <strong id="victory-max-streak">0</strong></p>
         </div>
+        <div id="victory-config" class="game-config-summary"></div>
         <button id="victory-restart-btn" class="btn btn-start">🥷 Nowa przygoda!</button>
         <button id="victory-menu-btn" class="btn btn-small">⬅ Menu główne</button>
-      </div>
-
-      <!-- MODAL KONFIGURACJI CUSTOM -->
-      <div id="custom-modal" class="modal hidden">
-        <div class="modal-content">
-          <h2>⚙️ Własne ustawienia</h2>
-          
-          <div class="custom-setting">
-            <label>Maksymalny wynik działania:</label>
-            <div class="range-display">
-              <input type="range" id="custom-max-number" min="5" max="100" value="10" />
-              <span id="custom-max-number-value" class="range-value">10</span>
-            </div>
-            <p class="setting-hint">💡 Np. dla "20" zadania to: 12+8, 15-3, 4×5, 18÷2</p>
-          </div>
-          
-          <div class="custom-setting">
-            <label>Operacje matematyczne:</label>
-            <div class="operator-toggles">
-              <label class="operator-toggle">
-                <input type="checkbox" id="op-add" checked />
-                <span>+</span>
-              </label>
-              <label class="operator-toggle">
-                <input type="checkbox" id="op-sub" checked />
-                <span>−</span>
-              </label>
-              <label class="operator-toggle">
-                <input type="checkbox" id="op-mul" />
-                <span>×</span>
-              </label>
-              <label class="operator-toggle">
-                <input type="checkbox" id="op-div" />
-                <span>÷</span>
-              </label>
-            </div>
-          </div>
-          
-          <div class="custom-setting">
-            <label class="timer-toggle">
-              <input type="checkbox" id="custom-no-timer" />
-              <span>∞ Bez limitu czasu</span>
-            </label>
-          </div>
-          
-          <div class="modal-buttons">
-            <button id="custom-save-btn" class="btn btn-start">Zapisz</button>
-            <button id="custom-cancel-btn" class="btn btn-small">Anuluj</button>
-          </div>
-        </div>
       </div>
 
       <!-- STOPKA -->
